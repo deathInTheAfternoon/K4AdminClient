@@ -40,16 +40,17 @@ namespace AdminClient.ViewModels
         [RelayCommand]
         private void Navigate(Type viewModelType)
         {
-            // Create and set the ViewModel
             if (viewModelType == typeof(OrganizationViewModel))
             {
+                if (CurrentViewModel is OrganizationViewModel oldViewModel)
+                {
+                    oldViewModel.OrganizationSelected -= OnOrganizationSelected;
+                }
+
                 CurrentViewTitle = "Organizations";
-                CurrentViewModel = new OrganizationViewModel(_apiService);
-            }
-            else if (viewModelType == typeof(ProgramViewModel))
-            {
-                CurrentViewTitle = "Programs";
-                CurrentViewModel = new ProgramViewModel(_apiService);
+                var orgViewModel = new OrganizationViewModel(_apiService);
+                orgViewModel.OrganizationSelected += OnOrganizationSelected;
+                CurrentViewModel = orgViewModel;
             }
         }
 
@@ -69,7 +70,7 @@ namespace AdminClient.ViewModels
                 Name = "Default Program" // You may want to load real program data here
             };
 
-            var programViewModel = new ProgramViewModel(_apiService) { Program = program };
+            var programViewModel = new ProgramViewModel(_apiService, org) { Program = program };
             CurrentViewModel = programViewModel;
             CurrentViewTitle = $"Programs - {org.Name}";
             CanNavigateBack = true;

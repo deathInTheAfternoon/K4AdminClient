@@ -3,11 +3,11 @@
 namespace AdminClient.Views
 {
     /// <summary>
-    /// Interaction logic for EditOrganizationDialog.xaml
+    /// Interaction logic for EditProgramDialog.xaml
     /// </summary>
-    public partial class EditOrganizationDialog : UserControl
+    public partial class EditProgramDialog : UserControl
     {
-        public EditOrganizationDialog()
+        public EditProgramDialog()
         {
             InitializeComponent();
         }

@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\Employee.png" />
+    <None Remove="Assets\Insufficient.png" />
+    <None Remove="Assets\location.png" />
+    <None Remove="Assets\Perfect.png" />
+    <None Remove="Assets\Sufficient.png" />
+    <None Remove="Images\folder.png" />
+    <None Remove="Images\globe.png" />
+    <None Remove="Images\globe.svg" />
+    <None Remove="Images\organization.svg" />
+    <None Remove="Images\program.svg" />
+    <None Remove="Images\unit.svg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+    <PackageReference Include="Faker.Net" Version="2.0.163" />
+    <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
+    <PackageReference Include="MaterialDesignThemes" Version="5.1.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <PackageReference Include="Npgsql" Version="9.0.2" />
+    <PackageReference Include="SharpVectors" Version="1.8.4.2" />
+    <PackageReference Include="Syncfusion.SfGrid.WPF" Version="28.1.36" />
+    <PackageReference Include="Syncfusion.SfInput.WPF" Version="28.1.36" />
+    <PackageReference Include="Syncfusion.Shared.WPF" Version="28.1.36" />
+    <PackageReference Include="Syncfusion.Tools.WPF" Version="28.1.36" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Employee.png" />
+    <Resource Include="Assets\Insufficient.png" />
+    <Resource Include="Assets\location.png" />
+    <Resource Include="Assets\Perfect.png" />
+    <Resource Include="Assets\Sufficient.png" />
+    <Resource Include="Images\folder.png" />
+    <Resource Include="Images\globe.png" />
+    <Resource Include="Images\globe.svg" />
+    <Resource Include="Images\organization.svg" />
+    <Resource Include="Images\program.svg" />
+    <Resource Include="Images\unit.svg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

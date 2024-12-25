@@ -1126,6 +1126,8 @@ namespace AdminClient
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+                <DataGrid ItemsSource="{Binding Organizations}" SelectedItem="{Binding SelectedOrganization}"
+                          IsReadOnly="True"></DataGrid>
             </DockPanel>
 
             <!-- Programs List -->
@@ -1159,6 +1161,9 @@ namespace AdminClient
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+                <DataGrid ItemsSource="{Binding Programs}" SelectedItem="{Binding SelectedProgram}"
+                          IsReadOnly="True"></DataGrid>
+                
             </DockPanel>
         </Grid>
 

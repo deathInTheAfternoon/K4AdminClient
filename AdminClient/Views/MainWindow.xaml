@@ -6,16 +6,15 @@
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
         xmlns:vm="clr-namespace:AdminClient.ViewModels"
         xmlns:views="clr-namespace:AdminClient.Views"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         Style="{StaticResource MaterialDesignWindow}"
         TextElement.FontWeight="Regular"
         TextElement.FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="Auto"
-        Title="MainWindow" Height="850" Width="1280" >
+        Title="MainWindow" Height="850" Width="1280">
 
-    <!-- Define how different ViewModels should be displayed -->
     <Window.Resources>
-        <!-- This DataTemplate tells WPF: "When you see an OrganizationViewModel, display the OrganizationView" -->
         <DataTemplate DataType="{x:Type vm:OrganizationViewModel}">
             <views:OrganizationView />
         </DataTemplate>
@@ -26,30 +25,21 @@
 
     <Grid Background="WhiteSmoke">
         <DockPanel>
-            <!-- Navigation Menu -->
+            <!-- Navigation Header -->
             <Border DockPanel.Dock="Top" 
                     Background="{StaticResource MaterialDesignPaper}" 
                     Effect="{StaticResource MaterialDesignShadowDepth2}">
-                <StackPanel Orientation="Horizontal" 
-                           Margin="16,8">
-                    <Button Content="Organizations" 
-                            Command="{Binding NavigateCommand}"
-                            CommandParameter="{x:Type vm:OrganizationViewModel}"
-                            Margin="0,0,8,0"
-                            Style="{StaticResource MaterialDesignFlatButton}"/>
-                    <Button Content="Programs" 
-                            Command="{Binding NavigateCommand}"
-                            CommandParameter="{x:Type vm:ProgramViewModel}"
-                            Style="{StaticResource MaterialDesignFlatButton}"/>
+                <StackPanel Orientation="Horizontal" Margin="16,8">
+                    <Button Content="← Back" 
+                            Command="{Binding NavigateBackCommand}"
+                            Visibility="{Binding CanNavigateBack, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding CurrentViewTitle}" 
+                             Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                             VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
-
-            <!-- Title Area -->
-            <TextBlock DockPanel.Dock="Top" 
-                      Text="{Binding CurrentViewTitle}" 
-                      FontSize="24" 
-                      Margin="16,16,16,8"
-                      Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
 
             <!-- Main Content Area -->
             <Border Background="Wheat" 

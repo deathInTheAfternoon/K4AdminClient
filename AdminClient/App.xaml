@@ -3,8 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:AdminClient"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:converters="clr-namespace:AdminClient.Converters"
-             >
+             xmlns:converters="clr-namespace:AdminClient.Converters">
 
     <Application.Resources>
         <ResourceDictionary>
@@ -14,7 +13,7 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <converters:NotNullToBooleanConverter x:Key="NotNullToBooleanConverter"/>
-            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:YesNoToBooleanConverter x:Key="YesNoToBooleanConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

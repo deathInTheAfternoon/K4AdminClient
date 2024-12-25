@@ -4,8 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:AdminClient"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:converters="clr-namespace:AdminClient.Converters"
-             >
+             xmlns:converters="clr-namespace:AdminClient.Converters">
 
     <Application.Resources>
         <ResourceDictionary>
@@ -15,7 +14,7 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <converters:NotNullToBooleanConverter x:Key="NotNullToBooleanConverter"/>
-            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:YesNoToBooleanConverter x:Key="YesNoToBooleanConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
@@ -203,6 +202,45 @@ namespace AdminClient.Converters
     }
 }
 ====== END FILE: ./Converters/ValueConverters.cs ======
+
+====== BEGIN FILE: ./Converters/YesNoToBooleanConverter.cs ======
+﻿using System.Globalization;
+using System.Windows.Data;
+
+namespace AdminClient.Converters
+{
+    [ValueConversion(typeof(string), typeof(bool))]
+    public class YesNoToBooleanConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            switch (value.ToString().ToLower())
+            {
+                case "yes":
+                case "oui":
+                    return true;
+                case "no":
+                case "non":
+                    return false;
+            }
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool)
+            {
+                if ((bool)value == true)
+                    return "yes";
+                else
+                    return "no";
+            }
+            return "no";
+
+        }
+    }
+}
+====== END FILE: ./Converters/YesNoToBooleanConverter.cs ======
 
 ====== BEGIN FILE: ./Models/ApiModel.cs ======
 ﻿using System;
@@ -596,6 +634,80 @@ namespace AdminClient.Services
 }
 ====== END FILE: ./Services/ApiService.cs ======
 
+====== BEGIN FILE: ./ViewModels/EditOrganizationViewModel.cs ======
+﻿using AdminClient.Models;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using System;
+using System.Threading.Tasks;
+
+namespace AdminClient.ViewModels
+{
+    public partial class EditOrganizationViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
+        private readonly Organization _originalOrganization;
+
+        [ObservableProperty]
+        private bool _isLoading;
+
+        [ObservableProperty]
+        private string _name;
+
+        public event EventHandler<Organization> OrganizationUpdated;
+        public event EventHandler DialogClosed;
+
+        public EditOrganizationViewModel(ApiService apiService, Organization organization)
+        {
+            _apiService = apiService;
+            _originalOrganization = organization;
+
+            // Initialize properties
+            Name = organization.Name;
+        }
+
+        [RelayCommand]
+        private async Task Save()
+        {
+            try
+            {
+                IsLoading = true;
+
+                // Create updated organization object
+                var updatedOrg = new Organization
+                {
+                    Id = _originalOrganization.Id,
+                    Name = Name
+                };
+
+                // TODO: Add API endpoint for updating organization
+                //await _apiService.UpdateOrganizationAsync(updatedOrg);
+
+                // Notify subscribers that update was successful
+                OrganizationUpdated?.Invoke(this, updatedOrg);
+                DialogClosed?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                // TODO: Handle error (could add ErrorMessage property and show in UI)
+                System.Windows.MessageBox.Show($"Error updating organization: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private void Cancel()
+        {
+            DialogClosed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+}
+====== END FILE: ./ViewModels/EditOrganizationViewModel.cs ======
+
 ====== BEGIN FILE: ./ViewModels/MainWindowViewModel.cs ======
 ﻿using System;
 using System.Windows.Input;
@@ -610,23 +722,29 @@ namespace AdminClient.ViewModels
     // The partial keyword is needed for the source generators from CommunityToolkit.Mvvm
     public partial class MainWindowViewModel : ObservableObject
     {
-        // Observable property for the current view/page title
+        // Current ViewModel
+        [ObservableProperty]
+        private object _currentViewModel;
+        // Current view's title
         [ObservableProperty]
         private string _currentViewTitle = "Welcome";
 
-        // Observable property that will hold our current page/view
+        // Add navigation stack and 'back' command.
         [ObservableProperty]
-        private object _currentViewModel;
+        private bool _canNavigateBack;
+        private readonly Stack<(object ViewModel, string Title)> _navigationStack = new();
+        private bool _disposed;
 
-        // Reference to the API service that we can pass to other ViewModels
+        // Reference to the API service that we will pass down to other ViewModels
         private readonly ApiService _apiService;
 
         public MainWindowViewModel(ApiService apiService)
         {
             _apiService = apiService;
-
-            // Set the initial OrganizationViewModel as the default model
-            CurrentViewModel = new OrganizationViewModel(_apiService);
+            var orgViewModel = new OrganizationViewModel(_apiService);
+            // Add handler for when an organization is selected
+            orgViewModel.OrganizationSelected += OnOrganizationSelected;
+            CurrentViewModel = orgViewModel;
             CurrentViewTitle = "Organizations";
         }
 
@@ -645,6 +763,64 @@ namespace AdminClient.ViewModels
                 CurrentViewModel = new ProgramViewModel(_apiService);
             }
         }
+
+        private void OnOrganizationSelected(object sender, Organization org)
+        {
+            if (CurrentViewModel is OrganizationViewModel oldViewModel)
+            {
+                oldViewModel.OrganizationSelected -= OnOrganizationSelected;
+            }
+
+            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+            // Create dummy program for navigation
+            var program = new Program
+            {
+                Organization = org,
+                Name = "Default Program" // You may want to load real program data here
+            };
+
+            var programViewModel = new ProgramViewModel(_apiService) { Program = program };
+            CurrentViewModel = programViewModel;
+            CurrentViewTitle = $"Programs - {org.Name}";
+            CanNavigateBack = true;
+        }
+
+        [RelayCommand]
+        private void NavigateBack()
+        {
+            if (_navigationStack.Count > 0)
+            {
+                var (viewModel, title) = _navigationStack.Pop();
+
+                if (viewModel is OrganizationViewModel newViewModel)
+                {
+                    newViewModel.OrganizationSelected += OnOrganizationSelected;
+                }
+
+                CurrentViewModel = viewModel;
+                CurrentViewTitle = title;
+                CanNavigateBack = _navigationStack.Count > 0;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing && CurrentViewModel is OrganizationViewModel viewModel)
+                {
+                    viewModel.OrganizationSelected -= OnOrganizationSelected;
+                }
+                _disposed = true;
+            }
+        }
     }
 }
 ====== END FILE: ./ViewModels/MainWindowViewModel.cs ======
@@ -654,6 +830,7 @@ namespace AdminClient.ViewModels
 using System.ComponentModel;
 using AdminClient.Models;
 using AdminClient.Services;
+using AdminClient.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Program = AdminClient.Models.Program;
@@ -678,39 +855,12 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private Organization _selectedOrganization;
 
-        [ObservableProperty]
-        private ObservableCollection<Program> _programs = new();
-
-        [ObservableProperty]
-        private Program _selectedProgram;
-
-        private readonly Action<Program> _onProgramSelected;
-
-        [RelayCommand]
-        private void NavigateToProgram()
-        {
-            if (SelectedProgram != null)
-            {
-                _onProgramSelected(SelectedProgram);
-            }
-        }
+        public event EventHandler<Organization> OrganizationSelected;
 
         public OrganizationViewModel(ApiService apiService)
         {
             _apiService = apiService;
             LoadOrganizationsAsync().ConfigureAwait(false);
-            //_onProgramSelected = onProgramSelected;
-
-
-            //if (DesignerProperties.GetIsInDesignMode(new System.Windows.DependencyObject()))
-            //{
-            //    LoadSampleData();
-            //}
-            //else
-            //{
-            //    // Load real data when constructed
-            //    LoadOrganizationsAsync().ConfigureAwait(false);
-            //}
         }
 
         [RelayCommand]
@@ -719,6 +869,7 @@ namespace AdminClient.ViewModels
             try
             {
                 IsLoading = true;
+                // Clear any previous error messages
                 ErrorMessage = null;
 
                 var orgs = await _apiService.GetOrganizationsForRegionAsync(_regionId);
@@ -734,45 +885,20 @@ namespace AdminClient.ViewModels
             }
             finally
             {
+                // Always clear loading animation
                 IsLoading = false;
             }
         }
 
         [RelayCommand]
-        private async Task LoadProgramsForSelectedOrganizationAsync()
-        {
-            if (SelectedOrganization == null) return;
-
-            try
-            {
-                IsLoading = true;
-                ErrorMessage = null;
-
-                var progs = await _apiService.GetProgramsForOrganizationAsync(SelectedOrganization.Id);
-                Programs.Clear();
-                foreach (var prog in progs)
-                {
-                    Programs.Add(prog);
-                }
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Error loading programs: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-        }
-
-        [RelayCommand]
-        private async Task CreateOrganizationAsync(string name)
+        private async Task CreateOrganizationAsync()
         {
             try
             {
                 IsLoading = true;
                 ErrorMessage = null;
 
+                var name = $"New Organization {Organizations.Count + 1}";
                 var newOrg = new Organization { Name = name };
                 var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
                 Organizations.Add(createdOrg);
@@ -788,53 +914,39 @@ namespace AdminClient.ViewModels
         }
 
         [RelayCommand]
-        private async Task CreateProgramAsync(string name)
+        private void DrillDown()
         {
-            if (SelectedOrganization == null) return;
-
-            try
+            if (SelectedOrganization != null)
             {
-                IsLoading = true;
-                ErrorMessage = null;
+                // Raise event to notify parent ViewModel
+                OrganizationSelected?.Invoke(this, SelectedOrganization);
+            }
+        }
 
-                var newProgram = new Program
+        [RelayCommand]
+        private async Task EditOrganization(Organization organization)
+        {
+            var dialogViewModel = new EditOrganizationViewModel(_apiService, organization);
+
+            var dialog = new EditOrganizationDialog
+            {
+                DataContext = dialogViewModel
+            };
+
+            dialogViewModel.OrganizationUpdated += (s, updatedOrg) =>
+            {
+                // Update the organization in the collection
+                var index = Organizations.IndexOf(organization);
+                if (index != -1)
                 {
-                    Name = name,
-                    Organization = SelectedOrganization
-                };
+                    Organizations[index] = updatedOrg;
+                }
+            };
 
-                var createdProgram = await _apiService.CreateProgramAsync(SelectedOrganization.Id, newProgram);
-                Programs.Add(createdProgram);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Error creating program: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-        }
-
-        // Helper method to load sample design-time data
-        private void LoadSampleData()
-        {
-            Organizations.Clear();
-            Organizations.Add(new Organization { Id = 1, Name = "Sample Organization 1" });
-            Organizations.Add(new Organization { Id = 2, Name = "Sample Organization 2" });
-
-            Programs.Clear();
-            Programs.Add(new AdminClient.Models.Program { Id = 1, Name = "Sample Program 1" });
-            Programs.Add(new AdminClient.Models.Program { Id = 2, Name = "Sample Program 2" });
-        }
-
-        // Property changed handlers
-        partial void OnSelectedOrganizationChanged(Organization value)
-        {
-            if (value != null && !DesignerProperties.GetIsInDesignMode(new System.Windows.DependencyObject()))
-            {
-                LoadProgramsForSelectedOrganizationAsync().ConfigureAwait(false);
-            }
+            // Show dialog
+            //var dialogHost = MaterialDesignThemes.Wpf.DialogHost.GetDialogHost("RootDialog");
+            var dialogHost = MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
+//            await dialogHost.(dialog);
         }
     }
 }
@@ -886,6 +998,37 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
+                if (Program == null)
+                {
+                    ErrorMessage = "Program is not initialized.";
+                    return;
+                }
+
+                // If we don't have a valid Program.Id but do have an Organization.Id,
+                // we need to either load an existing program or create a new one
+                if (Program?.Organization?.Id > 0 && Program?.Id == 0)
+                {
+                    // First try to load existing programs
+                    var programs = await _apiService.GetProgramsForOrganizationAsync(Program.Organization.Id);
+                    var existingProgram = programs.FirstOrDefault();
+
+                    if (existingProgram != null)
+                    {
+                        Program = existingProgram;
+                    }
+                    else
+                    {
+                        // Create a new program if none exist
+                        var newProgram = new Program
+                        {
+                            Name = $"{Program.Organization.Name} Program",
+                            Organization = Program.Organization
+                        };
+                        Program = await _apiService.CreateProgramAsync(Program.Organization.Id, newProgram);
+                    }
+                }
+
+                // Now load operating units (using the valid Program.Id)
                 var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
                 OperatingUnits.Clear();
                 foreach (var unit in units)
@@ -910,7 +1053,7 @@ namespace AdminClient.ViewModels
                 IsLoading = false;
             }
         }
-
+        
         [RelayCommand]
         private async Task CreateOperatingUnit()
         {
@@ -975,6 +1118,91 @@ namespace AdminClient.ViewModels
 }
 ====== END FILE: ./ViewModels/ProgramViewModel.cs ======
 
+====== BEGIN FILE: ./Views/EditOrganizationDialog.xaml ======
+﻿<!-- EditOrganizationDialog.xaml -->
+<UserControl x:Class="AdminClient.Views.EditOrganizationDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:local="clr-namespace:AdminClient.Converters"
+             Width="400">
+
+    <UserControl.Resources>
+        <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </UserControl.Resources>
+    
+    <materialDesign:Card Margin="16" Padding="16">
+        <StackPanel>
+            <TextBlock Text="Edit Organization"
+                     Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                     Margin="0,0,0,16"/>
+
+            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                     materialDesign:HintAssist.Hint="Organization Name"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                     Margin="0,8"/>
+
+            <!-- Add more fields as needed -->
+
+            <StackPanel Orientation="Horizontal" 
+                      HorizontalAlignment="Right" 
+                      Margin="0,16,0,0">
+                <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Command="{Binding CancelCommand}"
+                        Content="CANCEL"
+                        Margin="0,0,8,0"/>
+                <Button Style="{StaticResource MaterialDesignRaisedDarkButton}"
+                        Command="{Binding SaveCommand}"
+                        Content="SAVE"/>
+            </StackPanel>
+
+            <!-- Loading overlay -->
+            <Grid Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                  Panel.ZIndex="1000"
+                  Background="#80000000">
+                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                            Value="0"
+                            IsIndeterminate="True"/>
+            </Grid>
+        </StackPanel>
+    </materialDesign:Card>
+</UserControl>
+====== END FILE: ./Views/EditOrganizationDialog.xaml ======
+
+====== BEGIN FILE: ./Views/EditOrganizationDialog.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for EditOrganizationDialog.xaml
+    /// </summary>
+    public partial class EditOrganizationDialog : UserControl
+    {
+        public EditOrganizationDialog()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/EditOrganizationDialog.xaml.cs ======
+
 ====== BEGIN FILE: ./Views/MainWindow.xaml ======
 ﻿<Window x:Class="AdminClient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -984,16 +1212,15 @@ namespace AdminClient.ViewModels
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
         xmlns:vm="clr-namespace:AdminClient.ViewModels"
         xmlns:views="clr-namespace:AdminClient.Views"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         Style="{StaticResource MaterialDesignWindow}"
         TextElement.FontWeight="Regular"
         TextElement.FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="Auto"
-        Title="MainWindow" Height="850" Width="1280" >
+        Title="MainWindow" Height="850" Width="1280">
 
-    <!-- Define how different ViewModels should be displayed -->
     <Window.Resources>
-        <!-- This DataTemplate tells WPF: "When you see an OrganizationViewModel, display the OrganizationView" -->
         <DataTemplate DataType="{x:Type vm:OrganizationViewModel}">
             <views:OrganizationView />
         </DataTemplate>
@@ -1002,43 +1229,36 @@ namespace AdminClient.ViewModels
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Background="WhiteSmoke">
-        <DockPanel>
-            <!-- Navigation Menu -->
-            <Border DockPanel.Dock="Top" 
+    <materialDesign:DialogHost CloseOnClickAway="True">
+        <Grid Background="WhiteSmoke">
+            <DockPanel>
+                <!-- Navigation Header -->
+                <Border DockPanel.Dock="Top" 
                     Background="{StaticResource MaterialDesignPaper}" 
                     Effect="{StaticResource MaterialDesignShadowDepth2}">
-                <StackPanel Orientation="Horizontal" 
-                           Margin="16,8">
-                    <Button Content="Organizations" 
-                            Command="{Binding NavigateCommand}"
-                            CommandParameter="{x:Type vm:OrganizationViewModel}"
-                            Margin="0,0,8,0"
-                            Style="{StaticResource MaterialDesignFlatButton}"/>
-                    <Button Content="Programs" 
-                            Command="{Binding NavigateCommand}"
-                            CommandParameter="{x:Type vm:ProgramViewModel}"
-                            Style="{StaticResource MaterialDesignFlatButton}"/>
-                </StackPanel>
-            </Border>
+                    <StackPanel Orientation="Horizontal" Margin="16,8">
+                        <Button Content="← Back" 
+                            Command="{Binding NavigateBackCommand}"
+                            Visibility="Visible"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding CurrentViewTitle}" 
+                             Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                             VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
-            <!-- Title Area -->
-            <TextBlock DockPanel.Dock="Top" 
-                      Text="{Binding CurrentViewTitle}" 
-                      FontSize="24" 
-                      Margin="16,16,16,8"
-                      Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
-
-            <!-- Main Content Area -->
-            <Border Background="Wheat" 
+                <!-- Main Content Area -->
+                <Border Background="WhiteSmoke" 
                     Margin="16,8,16,16" 
-                    Effect="{StaticResource MaterialDesignShadowDepth1}">
-                <ContentControl Content="{Binding CurrentViewModel}"/>
-            </Border>
-        </DockPanel>
-    </Grid>
+                    Effect="{StaticResource MaterialDesignShadowDepth1}"
+                        CornerRadius="20">
+                    <ContentControl Content="{Binding CurrentViewModel}"/>
+                </Border>
+            </DockPanel>
+        </Grid>
+    </materialDesign:DialogHost>
 </Window>
-
 ====== END FILE: ./Views/MainWindow.xaml ======
 
 ====== BEGIN FILE: ./Views/MainWindow.xaml.cs ======
@@ -1068,113 +1288,88 @@ namespace AdminClient
 ====== END FILE: ./Views/MainWindow.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/OrganizationView.xaml ======
-﻿<UserControl x:Class="AdminClient.Views.OrganizationView"
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Added XML declaration -->
+<UserControl x:Class="AdminClient.Views.OrganizationView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:AdminClient.ViewModels"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:AdminClient.Converters"
              d:DataContext="{d:DesignInstance Type=vm:OrganizationViewModel}"
              mc:Ignorable="d">
+    <!-- Added converters namespace -->
+    <!-- Added materialDesign namespace -->
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <!-- Added for error message -->
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Error Message -->
+        <!-- Error Message - Added -->
         <TextBlock Grid.Row="0" 
                    Text="{Binding ErrorMessage}"
                    Foreground="Red"
                    Margin="0,0,0,10"
                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
 
-        <!-- Main Content -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Command Bar - Moved to row 1 -->
+        <ToolBar Grid.Row="1" Margin="0,0,0,10">
+            <Button Content="Add Organization" 
+                    Command="{Binding CreateOrganizationCommand}"
+                    Style="{StaticResource MaterialDesignFlatButton}"/>
+        </ToolBar>
 
-            <!-- Organizations List -->
-            <DockPanel Grid.Column="0" Margin="0,0,10,0">
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Text="Organizations" 
-                             FontWeight="Bold" 
-                             FontSize="16"
-                             Margin="0,0,0,10"/>
-
-                    <Button Content="Add New Organization"
-                            Command="{Binding CreateOrganizationCommand}"
-                            Padding="10,5"/>
-                    
-                </StackPanel>
-
-                <ListView ItemsSource="{Binding Organizations}"
-                         SelectedItem="{Binding SelectedOrganization}">
-                    <ListView.ItemTemplate>
+        <!-- Organizations DataGrid - Moved to row 2 -->
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Organizations}" 
+                  SelectedItem="{Binding SelectedOrganization}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  VerticalAlignment="Stretch" 
+            HorizontalAlignment="Stretch"
+            materialDesign:DataGridAssist.CellPadding="13 8 8 8"
+            materialDesign:DataGridAssist.ColumnHeaderPadding="8">
+            <DataGrid.InputBindings>
+                <MouseBinding MouseAction="LeftDoubleClick" 
+                             Command="{Binding DrillDownCommand}"/>
+            </DataGrid.InputBindings>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" 
+                                  Binding="{Binding Id}" 
+                                  Width="100"/>
+                <DataGridTextColumn Header="Name" 
+                                  Binding="{Binding Name}" 
+                                  Width="*"/>
+                <DataGridTemplateColumn Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="5">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding Id, StringFormat='ID: {0}'}"
-                                         Foreground="Gray"
-                                         FontSize="11"/>
-                            </StackPanel>
+                            <Button Content="Edit"
+                        Command="{Binding DataContext.EditOrganizationCommand, 
+                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"/>
                         </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-                <DataGrid ItemsSource="{Binding Organizations}" SelectedItem="{Binding SelectedOrganization}"
-                          IsReadOnly="True"></DataGrid>
-            </DockPanel>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
 
-            <!-- Programs List -->
-            <DockPanel Grid.Column="1" Margin="10,0,0,0">
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Text="Programs" 
-                             FontWeight="Bold"
-                             FontSize="16"
-                             Margin="0,0,0,10"/>
-
-                    <Button Content="Add New Program"
-                            Command="{Binding CreateProgramCommand}"
-                            IsEnabled="{Binding SelectedOrganization, 
-                                      Converter={StaticResource NotNullToBooleanConverter}}"
-                            Padding="10,5"/>
-                </StackPanel>
-
-                <ListView ItemsSource="{Binding Programs}" SelectedItem="{Binding SelectedProgram}">
-                <ListView.InputBindings>
-                    <MouseBinding MouseAction="LeftDoubleClick" 
-                     Command="{Binding NavigateToProgramCommand}"/>
-                </ListView.InputBindings>
-                <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="5">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding Id, StringFormat='ID: {0}'}"
-                                         Foreground="Gray"
-                                         FontSize="11"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-                <DataGrid ItemsSource="{Binding Programs}" SelectedItem="{Binding SelectedProgram}"
-                          IsReadOnly="True"></DataGrid>
-                
-            </DockPanel>
-        </Grid>
-
-        <!-- Loading Indicator -->
+        <!-- Loading Indicator - Updated to span all rows -->
         <Grid Grid.Row="0" Grid.RowSpan="3" 
               Background="#80000000" 
-              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Panel.ZIndex="1000">
+            <!-- Added to ensure overlay appears on top -->
             <ProgressBar IsIndeterminate="True" 
-                        Width="100" 
-                        Height="20"
-                        VerticalAlignment="Center"/>
+                        Width="100" Height="20"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource MaterialDesignCircularProgressBar}"/>
         </Grid>
     </Grid>
 </UserControl>

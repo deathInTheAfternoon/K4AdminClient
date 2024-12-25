@@ -23,30 +23,33 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Background="WhiteSmoke">
-        <DockPanel>
-            <!-- Navigation Header -->
-            <Border DockPanel.Dock="Top" 
+    <materialDesign:DialogHost CloseOnClickAway="True">
+        <Grid Background="WhiteSmoke">
+            <DockPanel>
+                <!-- Navigation Header -->
+                <Border DockPanel.Dock="Top" 
                     Background="{StaticResource MaterialDesignPaper}" 
                     Effect="{StaticResource MaterialDesignShadowDepth2}">
-                <StackPanel Orientation="Horizontal" Margin="16,8">
-                    <Button Content="← Back" 
+                    <StackPanel Orientation="Horizontal" Margin="16,8">
+                        <Button Content="← Back" 
                             Command="{Binding NavigateBackCommand}"
-                            Visibility="{Binding CanNavigateBack, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Visibility="Visible"
                             Style="{StaticResource MaterialDesignFlatButton}"
                             Margin="0,0,8,0"/>
-                    <TextBlock Text="{Binding CurrentViewTitle}" 
+                        <TextBlock Text="{Binding CurrentViewTitle}" 
                              Style="{StaticResource MaterialDesignHeadline6TextBlock}"
                              VerticalAlignment="Center"/>
-                </StackPanel>
-            </Border>
+                    </StackPanel>
+                </Border>
 
-            <!-- Main Content Area -->
-            <Border Background="Wheat" 
+                <!-- Main Content Area -->
+                <Border Background="WhiteSmoke" 
                     Margin="16,8,16,16" 
-                    Effect="{StaticResource MaterialDesignShadowDepth1}">
-                <ContentControl Content="{Binding CurrentViewModel}"/>
-            </Border>
-        </DockPanel>
-    </Grid>
+                    Effect="{StaticResource MaterialDesignShadowDepth1}"
+                        CornerRadius="20">
+                    <ContentControl Content="{Binding CurrentViewModel}"/>
+                </Border>
+            </DockPanel>
+        </Grid>
+    </materialDesign:DialogHost>
 </Window>

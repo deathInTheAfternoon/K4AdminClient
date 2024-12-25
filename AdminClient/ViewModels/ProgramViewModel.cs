@@ -43,6 +43,37 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
+                if (Program == null)
+                {
+                    ErrorMessage = "Program is not initialized.";
+                    return;
+                }
+
+                // If we don't have a valid Program.Id but do have an Organization.Id,
+                // we need to either load an existing program or create a new one
+                if (Program?.Organization?.Id > 0 && Program?.Id == 0)
+                {
+                    // First try to load existing programs
+                    var programs = await _apiService.GetProgramsForOrganizationAsync(Program.Organization.Id);
+                    var existingProgram = programs.FirstOrDefault();
+
+                    if (existingProgram != null)
+                    {
+                        Program = existingProgram;
+                    }
+                    else
+                    {
+                        // Create a new program if none exist
+                        var newProgram = new Program
+                        {
+                            Name = $"{Program.Organization.Name} Program",
+                            Organization = Program.Organization
+                        };
+                        Program = await _apiService.CreateProgramAsync(Program.Organization.Id, newProgram);
+                    }
+                }
+
+                // Now load operating units (using the valid Program.Id)
                 var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
                 OperatingUnits.Clear();
                 foreach (var unit in units)
@@ -67,7 +98,7 @@ namespace AdminClient.ViewModels
                 IsLoading = false;
             }
         }
-
+        
         [RelayCommand]
         private async Task CreateOperatingUnit()
         {

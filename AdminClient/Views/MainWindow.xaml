@@ -4,9 +4,8 @@
         xmlns:ac="clr-namespace:AdminClient"
         xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
-        xmlns:local="clr-namespace:AdminClient"
-        xmlns:views="clr-namespace:AdminClient.Views"
         xmlns:vm="clr-namespace:AdminClient.ViewModels"
+        xmlns:views="clr-namespace:AdminClient.Views"
         Style="{StaticResource MaterialDesignWindow}"
         TextElement.FontWeight="Regular"
         TextElement.FontSize="13"
@@ -20,13 +19,9 @@
         <DataTemplate DataType="{x:Type vm:OrganizationViewModel}">
             <views:OrganizationView />
         </DataTemplate>
-
-        <!-- We'll add more templates as we create more views -->
-        <!-- Example for when you create the Programs view:
         <DataTemplate DataType="{x:Type vm:ProgramViewModel}">
             <views:ProgramView />
         </DataTemplate>
-        -->
     </Window.Resources>
 
     <Grid Background="WhiteSmoke">
@@ -38,11 +33,13 @@
                 <StackPanel Orientation="Horizontal" 
                            Margin="16,8">
                     <Button Content="Organizations" 
-                            Command="{Binding NavigateToOrganizationsCommand}"
+                            Command="{Binding NavigateCommand}"
+                            CommandParameter="{x:Type vm:OrganizationViewModel}"
                             Margin="0,0,8,0"
                             Style="{StaticResource MaterialDesignFlatButton}"/>
                     <Button Content="Programs" 
-                            Command="{Binding NavigateToProgramsCommand}"
+                            Command="{Binding NavigateCommand}"
+                            CommandParameter="{x:Type vm:ProgramViewModel}"
                             Style="{StaticResource MaterialDesignFlatButton}"/>
                 </StackPanel>
             </Border>
@@ -55,10 +52,10 @@
                       Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
 
             <!-- Main Content Area -->
-            <Border Background="White" 
+            <Border Background="Wheat" 
                     Margin="16,8,16,16" 
                     Effect="{StaticResource MaterialDesignShadowDepth1}">
-                <ContentControl Content="{Binding CurrentView}"/>
+                <ContentControl Content="{Binding CurrentViewModel}"/>
             </Border>
         </DockPanel>
     </Grid>

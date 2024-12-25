@@ -46,6 +46,7 @@ namespace AdminClient.ViewModels
         public OrganizationViewModel(ApiService apiService)
         {
             _apiService = apiService;
+            LoadOrganizationsAsync().ConfigureAwait(false);
             //_onProgramSelected = onProgramSelected;
 
 

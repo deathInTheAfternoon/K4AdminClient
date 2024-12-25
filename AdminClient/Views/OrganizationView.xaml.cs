@@ -27,16 +27,5 @@ namespace AdminClient.Views
         {
             InitializeComponent();
         }
-
-        private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            var listView = sender as ListView;
-            var program = listView?.SelectedItem as Program;
-            if (program != null)
-            {
-                var programViewModel = new ProgramViewModel(App.GetService<ApiService>());
-                MainWindowViewModel.NavigateCommand.Execute(new ProgramView { DataContext = programViewModel });
-            }
-        }
     }
 }

@@ -17,7 +17,7 @@ namespace AdminClient.ViewModels
 
         // Observable property that will hold our current page/view
         [ObservableProperty]
-        private object _currentView;
+        private object _currentViewModel;
 
         // Reference to the API service that we can pass to other ViewModels
         private readonly ApiService _apiService;
@@ -26,41 +26,25 @@ namespace AdminClient.ViewModels
         {
             _apiService = apiService;
 
-            // When the application starts, we could automatically navigate to a default view
-            // For example, navigate to the Organizations view:
-            NavigateToOrganizations();
-        }
-
-        [RelayCommand]
-        private void Navigate(Type viewType)
-        {
-            switch (viewType)
-            {
-                case Type t when t == typeof(OrganizationView):
-                    NavigateToOrganizations();
-                    break;
-                case Type t when t == typeof(ProgramView):
-                    NavigateToProgram();
-                    break;
-            }
-        }
-
-
-        // Command to navigate to Organizations view
-        [RelayCommand]
-        private void NavigateToOrganizations()
-        {
+            // Set the initial OrganizationViewModel as the default model
+            CurrentViewModel = new OrganizationViewModel(_apiService);
             CurrentViewTitle = "Organizations";
-            // Create a new OrganizationViewModel using our ApiService
-            CurrentView = new OrganizationViewModel(_apiService);
         }
 
-        // We can add more navigation commands as needed
         [RelayCommand]
-        private void NavigateToProgram()
+        private void Navigate(Type viewModelType)
         {
-            CurrentViewTitle = $"Programs";
-            CurrentView = new ProgramViewModel(_apiService);
+            // Create and set the ViewModel
+            if (viewModelType == typeof(OrganizationViewModel))
+            {
+                CurrentViewTitle = "Organizations";
+                CurrentViewModel = new OrganizationViewModel(_apiService);
+            }
+            else if (viewModelType == typeof(ProgramViewModel))
+            {
+                CurrentViewTitle = "Programs";
+                CurrentViewModel = new ProgramViewModel(_apiService);
+            }
         }
     }
 }

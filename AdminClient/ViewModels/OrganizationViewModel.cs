@@ -26,39 +26,12 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private Organization _selectedOrganization;
 
-        [ObservableProperty]
-        private ObservableCollection<Program> _programs = new();
-
-        [ObservableProperty]
-        private Program _selectedProgram;
-
-        private readonly Action<Program> _onProgramSelected;
-
-        [RelayCommand]
-        private void NavigateToProgram()
-        {
-            if (SelectedProgram != null)
-            {
-                _onProgramSelected(SelectedProgram);
-            }
-        }
+        public event EventHandler<Organization> OrganizationSelected;
 
         public OrganizationViewModel(ApiService apiService)
         {
             _apiService = apiService;
             LoadOrganizationsAsync().ConfigureAwait(false);
-            //_onProgramSelected = onProgramSelected;
-
-
-            //if (DesignerProperties.GetIsInDesignMode(new System.Windows.DependencyObject()))
-            //{
-            //    LoadSampleData();
-            //}
-            //else
-            //{
-            //    // Load real data when constructed
-            //    LoadOrganizationsAsync().ConfigureAwait(false);
-            //}
         }
 
         [RelayCommand]
@@ -87,25 +60,21 @@ namespace AdminClient.ViewModels
         }
 
         [RelayCommand]
-        private async Task LoadProgramsForSelectedOrganizationAsync()
+        private async Task CreateOrganizationAsync()
         {
-            if (SelectedOrganization == null) return;
-
             try
             {
                 IsLoading = true;
                 ErrorMessage = null;
 
-                var progs = await _apiService.GetProgramsForOrganizationAsync(SelectedOrganization.Id);
-                Programs.Clear();
-                foreach (var prog in progs)
-                {
-                    Programs.Add(prog);
-                }
+                var name = $"New Organization {Organizations.Count + 1}";
+                var newOrg = new Organization { Name = name };
+                var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
+                Organizations.Add(createdOrg);
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error loading programs: {ex.Message}";
+                ErrorMessage = $"Error creating organization: {ex.Message}";
             }
             finally
             {
@@ -136,52 +105,11 @@ namespace AdminClient.ViewModels
         }
 
         [RelayCommand]
-        private async Task CreateProgramAsync(string name)
+        private void DrillDown()
         {
-            if (SelectedOrganization == null) return;
-
-            try
+            if (SelectedOrganization != null)
             {
-                IsLoading = true;
-                ErrorMessage = null;
-
-                var newProgram = new Program
-                {
-                    Name = name,
-                    Organization = SelectedOrganization
-                };
-
-                var createdProgram = await _apiService.CreateProgramAsync(SelectedOrganization.Id, newProgram);
-                Programs.Add(createdProgram);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Error creating program: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-        }
-
-        // Helper method to load sample design-time data
-        private void LoadSampleData()
-        {
-            Organizations.Clear();
-            Organizations.Add(new Organization { Id = 1, Name = "Sample Organization 1" });
-            Organizations.Add(new Organization { Id = 2, Name = "Sample Organization 2" });
-
-            Programs.Clear();
-            Programs.Add(new AdminClient.Models.Program { Id = 1, Name = "Sample Program 1" });
-            Programs.Add(new AdminClient.Models.Program { Id = 2, Name = "Sample Program 2" });
-        }
-
-        // Property changed handlers
-        partial void OnSelectedOrganizationChanged(Organization value)
-        {
-            if (value != null && !DesignerProperties.GetIsInDesignMode(new System.Windows.DependencyObject()))
-            {
-                LoadProgramsForSelectedOrganizationAsync().ConfigureAwait(false);
+                OrganizationSelected?.Invoke(this, SelectedOrganization);
             }
         }
     }

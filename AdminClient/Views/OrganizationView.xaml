@@ -22,80 +22,29 @@
                    Margin="0,0,0,10"
                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
 
-        <!-- Main Content -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Toolbar -->
+        <ToolBar Grid.Row="0">
+            <Button Content="Add Organization" 
+                    Command="{Binding CreateOrganizationCommand}"
+                    Style="{StaticResource MaterialDesignFlatButton}"
+                    Margin="0,0,10,0"/>
+        </ToolBar>
 
-            <!-- Organizations List -->
-            <DockPanel Grid.Column="0" Margin="0,0,10,0">
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Text="Organizations" 
-                             FontWeight="Bold" 
-                             FontSize="16"
-                             Margin="0,0,0,10"/>
-
-                    <Button Content="Add New Organization"
-                            Command="{Binding CreateOrganizationCommand}"
-                            Padding="10,5"/>
-                    
-                </StackPanel>
-
-                <ListView ItemsSource="{Binding Organizations}"
-                         SelectedItem="{Binding SelectedOrganization}">
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="5">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding Id, StringFormat='ID: {0}'}"
-                                         Foreground="Gray"
-                                         FontSize="11"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-                <DataGrid ItemsSource="{Binding Organizations}" SelectedItem="{Binding SelectedOrganization}"
-                          IsReadOnly="True"></DataGrid>
-            </DockPanel>
-
-            <!-- Programs List -->
-            <DockPanel Grid.Column="1" Margin="10,0,0,0">
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Text="Programs" 
-                             FontWeight="Bold"
-                             FontSize="16"
-                             Margin="0,0,0,10"/>
-
-                    <Button Content="Add New Program"
-                            Command="{Binding CreateProgramCommand}"
-                            IsEnabled="{Binding SelectedOrganization, 
-                                      Converter={StaticResource NotNullToBooleanConverter}}"
-                            Padding="10,5"/>
-                </StackPanel>
-
-                <ListView ItemsSource="{Binding Programs}" SelectedItem="{Binding SelectedProgram}">
-                <ListView.InputBindings>
-                    <MouseBinding MouseAction="LeftDoubleClick" 
-                     Command="{Binding NavigateToProgramCommand}"/>
-                </ListView.InputBindings>
-                <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="5">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding Id, StringFormat='ID: {0}'}"
-                                         Foreground="Gray"
-                                         FontSize="11"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-                <DataGrid ItemsSource="{Binding Programs}" SelectedItem="{Binding SelectedProgram}"
-                          IsReadOnly="True"></DataGrid>
-                
-            </DockPanel>
-        </Grid>
+        <!-- Organizations DataGrid -->
+        <DataGrid Grid.Row="1" 
+                  ItemsSource="{Binding Organizations}" 
+                  SelectedItem="{Binding SelectedOrganization}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True">
+            <DataGrid.InputBindings>
+                <MouseBinding MouseAction="LeftDoubleClick" 
+                             Command="{Binding DrillDownCommand}"/>
+            </DataGrid.InputBindings>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="100"/>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
 
         <!-- Loading Indicator -->
         <Grid Grid.Row="0" Grid.RowSpan="3" 

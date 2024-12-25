@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:AdminClient.ViewModels"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:AdminClient.Converters"
              d:DataContext="{d:DesignInstance Type=vm:OrganizationViewModel}"
              mc:Ignorable="d">
@@ -12,26 +13,17 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Error Message -->
-        <TextBlock Grid.Row="0" 
-                   Text="{Binding ErrorMessage}"
-                   Foreground="Red"
-                   Margin="0,0,0,10"
-                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
-
-        <!-- Toolbar -->
-        <ToolBar Grid.Row="0">
+        <!-- Command Bar -->
+        <ToolBar Grid.Row="0" Margin="0,0,0,10">
             <Button Content="Add Organization" 
                     Command="{Binding CreateOrganizationCommand}"
-                    Style="{StaticResource MaterialDesignFlatButton}"
-                    Margin="0,0,10,0"/>
+                    Style="{StaticResource MaterialDesignFlatButton}"/>
         </ToolBar>
 
         <!-- Organizations DataGrid -->
-        <DataGrid Grid.Row="1" 
+        <DataGrid Grid.Row="1"
                   ItemsSource="{Binding Organizations}" 
                   SelectedItem="{Binding SelectedOrganization}"
                   AutoGenerateColumns="False"
@@ -41,19 +33,23 @@
                              Command="{Binding DrillDownCommand}"/>
             </DataGrid.InputBindings>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="100"/>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                <DataGridTextColumn Header="ID" 
+                                  Binding="{Binding Id}" 
+                                  Width="100"/>
+                <DataGridTextColumn Header="Name" 
+                                  Binding="{Binding Name}" 
+                                  Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
 
         <!-- Loading Indicator -->
-        <Grid Grid.Row="0" Grid.RowSpan="3" 
+        <Grid Grid.Row="0" Grid.RowSpan="2" 
               Background="#80000000" 
               Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
             <ProgressBar IsIndeterminate="True" 
-                        Width="100" 
-                        Height="20"
-                        VerticalAlignment="Center"/>
+                        Width="100" Height="20"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource MaterialDesignCircularProgressBar}"/>
         </Grid>
     </Grid>
 </UserControl>

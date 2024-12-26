@@ -42,13 +42,47 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Main Content Area -->
-                <Border Background="WhiteSmoke" 
-                    Margin="16,8,16,16" 
-                    Effect="{StaticResource MaterialDesignShadowDepth1}"
-                        CornerRadius="20">
-                    <ContentControl Content="{Binding CurrentViewModel}"/>
-                </Border>
+                <Grid DockPanel.Dock="Bottom">
+                    <!-- NEW: Column definitions -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300" MinWidth="200"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- NEW: TreeView Panel -->
+                    <Border Grid.Column="0" 
+                            Background="{StaticResource MaterialDesignPaper}"
+                            Margin="16,8,8,16" 
+                            Effect="{StaticResource MaterialDesignShadowDepth1}"
+                            CornerRadius="20">
+                        <!-- NEW: Sample TreeView for prototyping -->
+                        <TreeView ItemsSource="{Binding TreeNodes}"
+                            SelectedItemChanged="TreeView_SelectedItemChanged">
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                    <TextBlock Text="{Binding Name}"/>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Border>
+
+                    <!-- NEW: Splitter -->
+                    <GridSplitter Grid.Column="1" 
+                                 Width="4" 
+                                 HorizontalAlignment="Center"
+                                 Margin="0,8,0,16"/>
+
+                    <!-- NEW: Content Area (replaces existing Border) -->
+                    <Border Grid.Column="2"
+                            Background="WhiteSmoke" 
+                            Margin="8,8,16,16" 
+                            Effect="{StaticResource MaterialDesignShadowDepth1}"
+                            CornerRadius="20">
+                        <!-- Preserve existing content binding -->
+                        <ContentControl Content="{Binding CurrentViewModel}"/>
+                    </Border>
+                </Grid>
             </DockPanel>
         </Grid>
     </materialDesign:DialogHost>

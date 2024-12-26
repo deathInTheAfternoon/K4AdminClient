@@ -13,7 +13,8 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <converters:NotNullToBooleanConverter x:Key="NotNullToBooleanConverter"/>
-            <converters:YesNoToBooleanConverter x:Key="YesNoToBooleanConverter"/>
+            <converters:NodeTypeToIconConverter x:Key="NodeTypeToIconConverter"/>
+            <converters:NodeTypeToColourConverter x:Key="NodeTypeToColourConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

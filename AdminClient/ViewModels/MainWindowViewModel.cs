@@ -17,6 +17,9 @@ namespace AdminClient.ViewModels
         public ObservableCollection<TreeNodeViewModel> TreeNodes { get; } = new();
         [ObservableProperty]
         private TreeNodeViewModel _selectedNode;
+        [ObservableProperty]
+        private bool _isTreeLoading;
+
         // Current ViewModel
         [ObservableProperty]
         private object _currentViewModel;
@@ -41,8 +44,8 @@ namespace AdminClient.ViewModels
             orgViewModel.OrganizationSelected += OnOrganizationSelected;
             CurrentViewModel = orgViewModel;
             CurrentViewTitle = "Organizations";
-            // Initialize the tree view's model
-            InitializeTreeAsync().ConfigureAwait(false);
+            // load tree view's model from db
+            LoadTreeAsync().ConfigureAwait(false);
         }
 
         [RelayCommand]
@@ -120,26 +123,40 @@ namespace AdminClient.ViewModels
             }
         }
 
+        private async Task LoadTreeAsync()
+        {
+            try
+            {
+                IsTreeLoading = true;
+                await InitializeTreeAsync();
+            }
+            finally
+            {
+                IsTreeLoading = false;
+            }
+        }
+
         private async Task InitializeTreeAsync()
         {
             try
             {
-                // Create root organizations node
-                var rootNode = new ViewModels.TreeNodeViewModel("Organizations", TreeNodeType.Root);
+                // Clear existing nodes before loading new data
+                TreeNodes.Clear();
+
+                // Create and add root organizations node
+                var rootNode = new TreeNodeViewModel("Organizations", TreeNodeType.Root);
                 TreeNodes.Add(rootNode);
 
-                // Load organizations
                 var orgs = await _apiService.GetOrganizationsForRegionAsync("us");
+
                 foreach (var org in orgs)
                 {
                     var orgNode = new TreeNodeViewModel(org.Name, TreeNodeType.Organization, org);
                     rootNode.Children.Add(orgNode);
 
-                    // Add Programs container node
                     var programsNode = new TreeNodeViewModel("Programs", TreeNodeType.Programs);
                     orgNode.Children.Add(programsNode);
 
-                    // Load programs for this organization
                     var programs = await _apiService.GetProgramsForOrganizationAsync(org.Id);
                     foreach (var program in programs)
                     {
@@ -149,7 +166,6 @@ namespace AdminClient.ViewModels
             }
             catch (Exception ex)
             {
-                // Keep existing error handling approach
                 MessageBox.Show($"Error loading tree data: {ex.Message}");
             }
         }

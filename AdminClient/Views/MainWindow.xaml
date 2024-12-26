@@ -56,15 +56,45 @@
                             Margin="16,8,8,16" 
                             Effect="{StaticResource MaterialDesignShadowDepth1}"
                             CornerRadius="20">
-                        <!-- NEW: Sample TreeView for prototyping -->
-                        <TreeView ItemsSource="{Binding TreeNodes}"
-                            SelectedItemChanged="TreeView_SelectedItemChanged">
-                            <TreeView.ItemTemplate>
-                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                    <TextBlock Text="{Binding Name}"/>
-                                </HierarchicalDataTemplate>
-                            </TreeView.ItemTemplate>
-                        </TreeView>
+                        <Grid>
+                            <TreeView ItemsSource="{Binding TreeNodes}"
+                                SelectedItemChanged="TreeView_SelectedItemChanged"
+                                Style="{StaticResource MaterialDesignTreeView}"
+                                materialDesign:TreeViewAssist.ShowSelection="True">
+                                <TreeView.Resources>
+                                    <!-- Style for TreeViewItem to add proper spacing and hover effects -->
+                                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource MaterialDesignTreeViewItem}">
+                                        <Setter Property="Padding" Value="8,4"/>
+                                        <Setter Property="materialDesign:TreeViewAssist.ExpanderSize" Value="24"/>
+                                    </Style>
+                                </TreeView.Resources>
+                                <TreeView.ItemTemplate>
+                                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" Margin="4">
+                                            <!-- Icon based on node type -->
+                                            <materialDesign:PackIcon
+                                                Kind="{Binding NodeType, Converter={StaticResource NodeTypeToIconConverter}}"
+                                                Foreground="{Binding NodeType, Converter={StaticResource NodeTypeToColourConverter}}"
+                                                Width="24"
+                                                Height="24"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,8,0"/>
+                                            <!-- Node name -->
+                                            <TextBlock Text="{Binding Name}"
+                              VerticalAlignment="Center"
+                              Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                        </StackPanel>
+                                    </HierarchicalDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                            <Grid Visibility="{Binding IsTreeLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Background="#80000000"
+                                Panel.ZIndex="1000">
+                                <ProgressBar 
+                                    Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                    IsIndeterminate="True"/>
+                            </Grid>
+                        </Grid>
                     </Border>
 
                     <!-- NEW: Splitter -->

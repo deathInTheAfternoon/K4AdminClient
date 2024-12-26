@@ -21,6 +21,12 @@
         <DataTemplate DataType="{x:Type vm:ProgramViewModel}">
             <views:ProgramView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OperatingUnitViewModel}">
+            <views:OperatingUnitView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:BundleDefinitionViewModel}">
+            <views:BundleDefinitionView />
+        </DataTemplate>
     </Window.Resources>
 
     <materialDesign:DialogHost CloseOnClickAway="True">

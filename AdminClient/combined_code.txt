@@ -14,7 +14,8 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <converters:NotNullToBooleanConverter x:Key="NotNullToBooleanConverter"/>
-            <converters:YesNoToBooleanConverter x:Key="YesNoToBooleanConverter"/>
+            <converters:NodeTypeToIconConverter x:Key="NodeTypeToIconConverter"/>
+            <converters:NodeTypeToColourConverter x:Key="NodeTypeToColourConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
@@ -159,6 +160,9 @@ using System.Windows;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
+using AdminClient.ViewModels;
+using MaterialDesignThemes.Wpf;
 
 namespace AdminClient.Converters
 {
@@ -193,6 +197,68 @@ namespace AdminClient.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             return value is bool boolValue && boolValue ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // Map TreeView node type to Material Design icon
+    public class NodeTypeToIconConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is TreeNodeType nodeType)
+            {
+                return nodeType switch
+                {
+                    TreeNodeType.Root => PackIconKind.ViewList,
+                    TreeNodeType.Organization => PackIconKind.Domain,
+                    TreeNodeType.Programs => PackIconKind.FolderMultiple,
+                    TreeNodeType.Program => PackIconKind.Folder,
+                    TreeNodeType.OperatingUnits => PackIconKind.FolderNetwork,
+                    TreeNodeType.OperatingUnit => PackIconKind.FolderAccount,
+                    TreeNodeType.BundleDefinitions => PackIconKind.FolderMultiple,
+                    TreeNodeType.BundleDefinition => PackIconKind.Package,
+                    TreeNodeType.ActivityDefinitions => PackIconKind.FolderCog,
+                    TreeNodeType.ActivityDefinition => PackIconKind.FileDocument,
+                    _ => PackIconKind.Circle
+                };
+            }
+            return PackIconKind.Circle;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // Map TreeView node type to Material Design color
+    public class NodeTypeToColourConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is TreeNodeType nodeType)
+            {
+                return nodeType switch
+                {
+                    TreeNodeType.Root => new SolidColorBrush(Colors.Gray),
+                    TreeNodeType.Organization => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2")), // Material Blue
+                    TreeNodeType.Programs => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#388E3C")), // Material Green
+                    TreeNodeType.Program => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#43A047")), // Lighter Green
+                    TreeNodeType.OperatingUnits => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7B1FA2")), // Material Purple
+                    TreeNodeType.OperatingUnit => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8E24AA")), // Lighter Purple
+                    TreeNodeType.BundleDefinitions => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F57C00")), // Material Orange
+                    TreeNodeType.BundleDefinition => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FB8C00")), // Lighter Orange
+                    TreeNodeType.ActivityDefinitions => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C2185B")), // Material Pink
+                    TreeNodeType.ActivityDefinition => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D81B60")), // Lighter Pink
+                    _ => new SolidColorBrush(Colors.Gray)
+                };
+            }
+            return new SolidColorBrush(Colors.Gray);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -634,6 +700,69 @@ namespace AdminClient.Services
 }
 ====== END FILE: ./Services/ApiService.cs ======
 
+====== BEGIN FILE: ./ViewModels/BundleDefinitionViewModel.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AdminClient.Models;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace AdminClient.ViewModels
+{
+    public partial class BundleDefinitionViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
+
+        [ObservableProperty]
+        private bool _isLoading;
+
+        [ObservableProperty]
+        private string _errorMessage;
+
+        [ObservableProperty]
+        private BundleDefinition _bundleDefinition;
+
+        [ObservableProperty]
+        private ObservableCollection<ActivityDefinition> _activities = new();
+
+        public BundleDefinitionViewModel(ApiService apiService, BundleDefinition bundleDefinition)
+        {
+            _apiService = apiService;
+            _bundleDefinition = bundleDefinition;
+            LoadDataAsync().ConfigureAwait(false);
+        }
+
+        private async Task LoadDataAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                // Load activities from the bundle
+                foreach (var activity in _bundleDefinition.Activities)
+                {
+                    Activities.Add(activity);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading bundle definition data: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+    }
+}
+
+====== END FILE: ./ViewModels/BundleDefinitionViewModel.cs ======
+
 ====== BEGIN FILE: ./ViewModels/EditOrganizationViewModel.cs ======
 ﻿using AdminClient.Models;
 using AdminClient.Services;
@@ -802,6 +931,9 @@ namespace AdminClient.ViewModels
         public ObservableCollection<TreeNodeViewModel> TreeNodes { get; } = new();
         [ObservableProperty]
         private TreeNodeViewModel _selectedNode;
+        [ObservableProperty]
+        private bool _isTreeLoading;
+
         // Current ViewModel
         [ObservableProperty]
         private object _currentViewModel;
@@ -826,8 +958,8 @@ namespace AdminClient.ViewModels
             orgViewModel.OrganizationSelected += OnOrganizationSelected;
             CurrentViewModel = orgViewModel;
             CurrentViewTitle = "Organizations";
-            // Initialize the tree view's model
-            InitializeTreeAsync().ConfigureAwait(false);
+            // load tree view's model from db
+            LoadTreeAsync().ConfigureAwait(false);
         }
 
         [RelayCommand]
@@ -905,26 +1037,40 @@ namespace AdminClient.ViewModels
             }
         }
 
+        private async Task LoadTreeAsync()
+        {
+            try
+            {
+                IsTreeLoading = true;
+                await InitializeTreeAsync();
+            }
+            finally
+            {
+                IsTreeLoading = false;
+            }
+        }
+
         private async Task InitializeTreeAsync()
         {
             try
             {
-                // Create root organizations node
-                var rootNode = new ViewModels.TreeNodeViewModel("Organizations", TreeNodeType.Root);
+                // Clear existing nodes before loading new data
+                TreeNodes.Clear();
+
+                // Create and add root organizations node
+                var rootNode = new TreeNodeViewModel("Organizations", TreeNodeType.Root);
                 TreeNodes.Add(rootNode);
 
-                // Load organizations
                 var orgs = await _apiService.GetOrganizationsForRegionAsync("us");
+
                 foreach (var org in orgs)
                 {
                     var orgNode = new TreeNodeViewModel(org.Name, TreeNodeType.Organization, org);
                     rootNode.Children.Add(orgNode);
 
-                    // Add Programs container node
                     var programsNode = new TreeNodeViewModel("Programs", TreeNodeType.Programs);
                     orgNode.Children.Add(programsNode);
 
-                    // Load programs for this organization
                     var programs = await _apiService.GetProgramsForOrganizationAsync(org.Id);
                     foreach (var program in programs)
                     {
@@ -934,50 +1080,105 @@ namespace AdminClient.ViewModels
             }
             catch (Exception ex)
             {
-                // Keep existing error handling approach
                 MessageBox.Show($"Error loading tree data: {ex.Message}");
             }
         }
 
-        // Helper method for creating program nodes
-        private void AddProgramNode(TreeNodeViewModel programsNode, Program program)
+        // Helper method for creating nodes from db data
+        private async Task AddProgramNode(TreeNodeViewModel programsNode, Program program)
         {
             var programNode = new TreeNodeViewModel(program.Name, TreeNodeType.Program, program);
             programsNode.Children.Add(programNode);
 
-            // Add Operating Units container
+            // ADD Operating Units with real data
             var operatingUnitsNode = new TreeNodeViewModel("Operating Units", TreeNodeType.OperatingUnits);
             programNode.Children.Add(operatingUnitsNode);
 
-            // Add Bundle Definitions container
+            var operatingUnits = await _apiService.GetOperatingUnitsForProgramAsync(program.Id);
+            foreach (var unit in operatingUnits)
+            {
+                var unitNode = new TreeNodeViewModel(unit.Name, TreeNodeType.OperatingUnit, unit);
+                operatingUnitsNode.Children.Add(unitNode);
+            }
+
             var bundleDefsNode = new TreeNodeViewModel("Bundle Definitions", TreeNodeType.BundleDefinitions);
             programNode.Children.Add(bundleDefsNode);
+
+            var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(program.Id);
+            foreach (var bundle in bundles)
+            {
+                var bundleNode = new TreeNodeViewModel(bundle.Name, TreeNodeType.BundleDefinition, bundle);
+                bundleDefsNode.Children.Add(bundleNode);
+            }
         }
 
-        // NEW: Add method for handling tree node selection
         public async Task HandleTreeNodeSelectionAsync(TreeNodeViewModel selectedNode)
         {
             if (selectedNode == null) return;
 
             try
             {
+                // MODIFY switch statement to handle all node types
                 switch (selectedNode.NodeType)
                 {
+                    // Keep existing Organization handling
                     case TreeNodeType.Organization:
                         if (selectedNode.ModelObject is Organization org)
                         {
+                            // Existing organization navigation remains unchanged
                             OnOrganizationSelected(this, org);
                         }
                         break;
 
+                    // ADD Program handling
                     case TreeNodeType.Program:
                         if (selectedNode.ModelObject is Program program)
                         {
-                            // We'll implement program selection handler later
+                            // Save current state to navigation stack
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+                            // Create and set new program view model
+                            var programViewModel = new ProgramViewModel(_apiService, program.Organization)
+                            {
+                                Program = program
+                            };
+                            CurrentViewModel = programViewModel;
+                            CurrentViewTitle = $"Program - {program.Name}";
+                            CanNavigateBack = true;
+                        }
+                        break;
+                    case TreeNodeType.OperatingUnit:
+                        if (selectedNode.ModelObject is OperatingUnit unit)
+                        {
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+                            // We'll need to create OperatingUnitViewModel in the next micro-feature
+                            var operatingUnitViewModel = new OperatingUnitViewModel(_apiService, unit);
+                            CurrentViewModel = operatingUnitViewModel;
+                            CurrentViewTitle = $"Operating Unit - {unit.Name}";
+                            CanNavigateBack = true;
                         }
                         break;
 
-                        // We'll add more cases as we implement other node types
+                    case TreeNodeType.BundleDefinition:
+                        if (selectedNode.ModelObject is BundleDefinition bundle)
+                        {
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+                            // We'll need to create BundleDefinitionViewModel in the next micro-feature
+                            var bundleViewModel = new BundleDefinitionViewModel(_apiService, bundle);
+                            CurrentViewModel = bundleViewModel;
+                            CurrentViewTitle = $"Bundle - {bundle.Name}";
+                            CanNavigateBack = true;
+                        }
+                        break;
+
+                    // Container nodes don't need navigation
+                    case TreeNodeType.Root:
+                    case TreeNodeType.Programs:
+                    case TreeNodeType.OperatingUnits:
+                    case TreeNodeType.BundleDefinitions:
+                        break;
                 }
             }
             catch (Exception ex)
@@ -988,6 +1189,72 @@ namespace AdminClient.ViewModels
     }
 }
 ====== END FILE: ./ViewModels/MainWindowViewModel.cs ======
+
+====== BEGIN FILE: ./ViewModels/OperatingUnitViewModel.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AdminClient.Models;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace AdminClient.ViewModels
+{
+    public partial class OperatingUnitViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
+
+        [ObservableProperty]
+        private bool _isLoading;
+
+        [ObservableProperty]
+        private string _errorMessage;
+
+        [ObservableProperty]
+        private OperatingUnit _operatingUnit;
+
+        // ADD collections for HCPs and Subjects
+        [ObservableProperty]
+        private ObservableCollection<User> _hcps = new();
+
+        [ObservableProperty]
+        private ObservableCollection<User> _subjects = new();
+
+        public OperatingUnitViewModel(ApiService apiService, OperatingUnit operatingUnit)
+        {
+            _apiService = apiService;
+            _operatingUnit = operatingUnit;
+            LoadDataAsync().ConfigureAwait(false);
+        }
+
+        private async Task LoadDataAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                // Here we would load HCPs and Subjects
+                // Note: API endpoint needs to be added to ApiService
+                // _apiService.GetHcpsForOperatingUnitAsync(OperatingUnit.Id);
+                // _apiService.GetSubjectsForOperatingUnitAsync(OperatingUnit.Id);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading operating unit data: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+    }
+}
+
+====== END FILE: ./ViewModels/OperatingUnitViewModel.cs ======
 
 ====== BEGIN FILE: ./ViewModels/OrganizationViewModel.cs ======
 ﻿using System.Collections.ObjectModel;
@@ -1348,6 +1615,9 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private TreeNodeType _nodeType;
 
+        [ObservableProperty]
+        private bool _isCollectionNode;
+
         // Reference to the actual domain model object
         public object ModelObject { get; }
 
@@ -1356,6 +1626,13 @@ namespace AdminClient.ViewModels
             Name = name;
             NodeType = nodeType;
             ModelObject = modelObject;
+
+            IsCollectionNode = nodeType is TreeNodeType.Root // Root == Organizations at present
+                or TreeNodeType.Programs 
+                or TreeNodeType.OperatingUnits 
+                or TreeNodeType.BundleDefinitions 
+                or TreeNodeType.ActivityDefinitions;
+
         }
     }
 
@@ -1375,6 +1652,107 @@ namespace AdminClient.ViewModels
     }
 }
 ====== END FILE: ./ViewModels/TreeNodeViewModel.cs ======
+
+====== BEGIN FILE: ./Views/BundleDefinitionView.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.BundleDefinitionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:local="clr-namespace:AdminClient.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Error Message -->
+        <TextBlock Grid.Row="0" 
+                   Text="{Binding ErrorMessage}"
+                   Foreground="Red"
+                   Margin="0,0,0,10"
+                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+        <!-- Bundle Details -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,20">
+            <TextBlock Text="{Binding BundleDefinition.Name}"
+                       Style="{StaticResource MaterialDesignHeadline5TextBlock}"
+                       Margin="0,0,0,10"/>
+            <TextBlock Text="{Binding BundleDefinition.Program.Name}"
+                       Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+            <TextBlock Text="{Binding BundleDefinition.Status}"
+                       Style="{StaticResource MaterialDesignBody2TextBlock}"/>
+        </StackPanel>
+
+        <!-- Activities Header -->
+        <TextBlock Grid.Row="2" 
+                   Text="Activities"
+                   Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                   Margin="0,0,0,10"/>
+
+        <!-- Activities List -->
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding Activities}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" 
+                                  Binding="{Binding Name}"/>
+                <DataGridTextColumn Header="Instructions" 
+                                  Binding="{Binding Instructions}"/>
+                <DataGridCheckBoxColumn Header="HCP Operated" 
+                                      Binding="{Binding HcpOperated}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.Row="0" Grid.RowSpan="4"
+              Background="#80000000"
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                        IsIndeterminate="True"/>
+        </Grid>
+    </Grid>
+</UserControl>
+
+====== END FILE: ./Views/BundleDefinitionView.xaml ======
+
+====== BEGIN FILE: ./Views/BundleDefinitionView.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for BundleDefinitionView.xaml
+    /// </summary>
+    public partial class BundleDefinitionView : UserControl
+    {
+        public BundleDefinitionView()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/BundleDefinitionView.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/EditOrganizationDialog.xaml ======
 ﻿<!-- EditOrganizationDialog.xaml -->
@@ -1541,6 +1919,12 @@ namespace AdminClient.Views
         <DataTemplate DataType="{x:Type vm:ProgramViewModel}">
             <views:ProgramView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OperatingUnitViewModel}">
+            <views:OperatingUnitView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:BundleDefinitionViewModel}">
+            <views:BundleDefinitionView />
+        </DataTemplate>
     </Window.Resources>
 
     <materialDesign:DialogHost CloseOnClickAway="True">
@@ -1576,15 +1960,45 @@ namespace AdminClient.Views
                             Margin="16,8,8,16" 
                             Effect="{StaticResource MaterialDesignShadowDepth1}"
                             CornerRadius="20">
-                        <!-- NEW: Sample TreeView for prototyping -->
-                        <TreeView ItemsSource="{Binding TreeNodes}"
-                            SelectedItemChanged="TreeView_SelectedItemChanged">
-                            <TreeView.ItemTemplate>
-                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                    <TextBlock Text="{Binding Name}"/>
-                                </HierarchicalDataTemplate>
-                            </TreeView.ItemTemplate>
-                        </TreeView>
+                        <Grid>
+                            <TreeView ItemsSource="{Binding TreeNodes}"
+                                SelectedItemChanged="TreeView_SelectedItemChanged"
+                                Style="{StaticResource MaterialDesignTreeView}"
+                                materialDesign:TreeViewAssist.ShowSelection="True">
+                                <TreeView.Resources>
+                                    <!-- Style for TreeViewItem to add proper spacing and hover effects -->
+                                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource MaterialDesignTreeViewItem}">
+                                        <Setter Property="Padding" Value="8,4"/>
+                                        <Setter Property="materialDesign:TreeViewAssist.ExpanderSize" Value="24"/>
+                                    </Style>
+                                </TreeView.Resources>
+                                <TreeView.ItemTemplate>
+                                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" Margin="4">
+                                            <!-- Icon based on node type -->
+                                            <materialDesign:PackIcon
+                                                Kind="{Binding NodeType, Converter={StaticResource NodeTypeToIconConverter}}"
+                                                Foreground="{Binding NodeType, Converter={StaticResource NodeTypeToColourConverter}}"
+                                                Width="24"
+                                                Height="24"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,8,0"/>
+                                            <!-- Node name -->
+                                            <TextBlock Text="{Binding Name}"
+                              VerticalAlignment="Center"
+                              Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                        </StackPanel>
+                                    </HierarchicalDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                            <Grid Visibility="{Binding IsTreeLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Background="#80000000"
+                                Panel.ZIndex="1000">
+                                <ProgressBar 
+                                    Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                    IsIndeterminate="True"/>
+                            </Grid>
+                        </Grid>
                     </Border>
 
                     <!-- NEW: Splitter -->
@@ -1644,6 +2058,107 @@ namespace AdminClient
 }
 
 ====== END FILE: ./Views/MainWindow.xaml.cs ======
+
+====== BEGIN FILE: ./Views/OperatingUnitView.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.OperatingUnitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:local="clr-namespace:AdminClient.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Error Message -->
+        <TextBlock Grid.Row="0" 
+                   Text="{Binding ErrorMessage}"
+                   Foreground="Red"
+                   Margin="0,0,0,10"
+                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+        <!-- Operating Unit Details -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,20">
+            <TextBlock Text="{Binding OperatingUnit.Name}"
+                       Style="{StaticResource MaterialDesignHeadline5TextBlock}"
+                       Margin="0,0,0,10"/>
+            <TextBlock Text="{Binding OperatingUnit.Program.Name}"
+                       Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+        </StackPanel>
+
+        <!-- Tabs for HCPs and Subjects -->
+        <TabControl Grid.Row="2">
+            <TabItem Header="HCPs">
+                <DataGrid ItemsSource="{Binding Hcps}"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}"/>
+                        <DataGridTextColumn Header="Email" Binding="{Binding Email}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+            <TabItem Header="Subjects">
+                <DataGrid ItemsSource="{Binding Subjects}"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}"/>
+                        <DataGridTextColumn Header="Email" Binding="{Binding Email}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.Row="0" Grid.RowSpan="3"
+              Background="#80000000"
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                        IsIndeterminate="True"/>
+        </Grid>
+    </Grid>
+</UserControl>
+
+====== END FILE: ./Views/OperatingUnitView.xaml ======
+
+====== BEGIN FILE: ./Views/OperatingUnitView.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for OperatingUnitView.xaml
+    /// </summary>
+    public partial class OperatingUnitView : UserControl
+    {
+        public OperatingUnitView()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/OperatingUnitView.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/OrganizationView.xaml ======
 ﻿<?xml version="1.0" encoding="utf-8" ?>

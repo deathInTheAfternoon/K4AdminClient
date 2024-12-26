@@ -170,45 +170,101 @@ namespace AdminClient.ViewModels
             }
         }
 
-        // Helper method for creating program nodes
-        private void AddProgramNode(TreeNodeViewModel programsNode, Program program)
+        // Helper method for creating nodes from db data
+        private async Task AddProgramNode(TreeNodeViewModel programsNode, Program program)
         {
             var programNode = new TreeNodeViewModel(program.Name, TreeNodeType.Program, program);
             programsNode.Children.Add(programNode);
 
-            // Add Operating Units container
+            // ADD Operating Units with real data
             var operatingUnitsNode = new TreeNodeViewModel("Operating Units", TreeNodeType.OperatingUnits);
             programNode.Children.Add(operatingUnitsNode);
 
-            // Add Bundle Definitions container
+            var operatingUnits = await _apiService.GetOperatingUnitsForProgramAsync(program.Id);
+            foreach (var unit in operatingUnits)
+            {
+                var unitNode = new TreeNodeViewModel(unit.Name, TreeNodeType.OperatingUnit, unit);
+                operatingUnitsNode.Children.Add(unitNode);
+            }
+
             var bundleDefsNode = new TreeNodeViewModel("Bundle Definitions", TreeNodeType.BundleDefinitions);
             programNode.Children.Add(bundleDefsNode);
+
+            var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(program.Id);
+            foreach (var bundle in bundles)
+            {
+                var bundleNode = new TreeNodeViewModel(bundle.Name, TreeNodeType.BundleDefinition, bundle);
+                bundleDefsNode.Children.Add(bundleNode);
+            }
         }
 
-        // NEW: Add method for handling tree node selection
         public async Task HandleTreeNodeSelectionAsync(TreeNodeViewModel selectedNode)
         {
             if (selectedNode == null) return;
 
             try
             {
+                // MODIFY switch statement to handle all node types
                 switch (selectedNode.NodeType)
                 {
+                    // Keep existing Organization handling
                     case TreeNodeType.Organization:
                         if (selectedNode.ModelObject is Organization org)
                         {
+                            // Existing organization navigation remains unchanged
                             OnOrganizationSelected(this, org);
                         }
                         break;
 
+                    // ADD Program handling
                     case TreeNodeType.Program:
                         if (selectedNode.ModelObject is Program program)
                         {
-                            // We'll implement program selection handler later
+                            // Save current state to navigation stack
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+                            // Create and set new program view model
+                            var programViewModel = new ProgramViewModel(_apiService, program.Organization)
+                            {
+                                Program = program
+                            };
+                            CurrentViewModel = programViewModel;
+                            CurrentViewTitle = $"Program - {program.Name}";
+                            CanNavigateBack = true;
+                        }
+                        break;
+                    case TreeNodeType.OperatingUnit:
+                        if (selectedNode.ModelObject is OperatingUnit unit)
+                        {
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+                            // We'll need to create OperatingUnitViewModel in the next micro-feature
+                            var operatingUnitViewModel = new OperatingUnitViewModel(_apiService, unit);
+                            CurrentViewModel = operatingUnitViewModel;
+                            CurrentViewTitle = $"Operating Unit - {unit.Name}";
+                            CanNavigateBack = true;
                         }
                         break;
 
-                        // We'll add more cases as we implement other node types
+                    case TreeNodeType.BundleDefinition:
+                        if (selectedNode.ModelObject is BundleDefinition bundle)
+                        {
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+
+                            // We'll need to create BundleDefinitionViewModel in the next micro-feature
+                            var bundleViewModel = new BundleDefinitionViewModel(_apiService, bundle);
+                            CurrentViewModel = bundleViewModel;
+                            CurrentViewTitle = $"Bundle - {bundle.Name}";
+                            CanNavigateBack = true;
+                        }
+                        break;
+
+                    // Container nodes don't need navigation
+                    case TreeNodeType.Root:
+                    case TreeNodeType.Programs:
+                    case TreeNodeType.OperatingUnits:
+                    case TreeNodeType.BundleDefinitions:
+                        break;
                 }
             }
             catch (Exception ex)

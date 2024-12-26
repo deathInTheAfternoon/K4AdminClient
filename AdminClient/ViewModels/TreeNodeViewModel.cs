@@ -17,6 +17,9 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private TreeNodeType _nodeType;
 
+        [ObservableProperty]
+        private bool _isCollectionNode;
+
         // Reference to the actual domain model object
         public object ModelObject { get; }
 
@@ -25,6 +28,13 @@ namespace AdminClient.ViewModels
             Name = name;
             NodeType = nodeType;
             ModelObject = modelObject;
+
+            IsCollectionNode = nodeType is TreeNodeType.Root // Root == Organizations at present
+                or TreeNodeType.Programs 
+                or TreeNodeType.OperatingUnits 
+                or TreeNodeType.BundleDefinitions 
+                or TreeNodeType.ActivityDefinitions;
+
         }
     }
 

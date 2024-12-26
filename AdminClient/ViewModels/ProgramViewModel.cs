@@ -45,7 +45,6 @@ namespace AdminClient.ViewModels
             LoadDataAsync().ConfigureAwait(false);
         }
 
-        [RelayCommand]
         private async Task LoadDataAsync()
         {
             try
@@ -53,37 +52,20 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
-                if (Program == null)
+                // First load all programs for the organization. Remember, organization is a c'tor argument.
+                var orgPrograms = await _apiService.GetProgramsForOrganizationAsync(Organization.Id);
+                // Clear the existing Programs collection and add the new ones
+                Programs.Clear();
+                foreach (var prog in orgPrograms)
                 {
-                    ErrorMessage = "Program is not initialized.";
-                    return;
+                    Programs.Add(prog);
                 }
 
-                // If we don't have a valid Program.Id but do have an Organization.Id,
-                // we need to either load an existing program or create a new one
-                if (Program?.Organization?.Id > 0 && Program?.Id == 0)
-                {
-                    // First try to load existing programs
-                    var programs = await _apiService.GetProgramsForOrganizationAsync(Program.Organization.Id);
-                    var existingProgram = programs.FirstOrDefault();
+                // FirstOrDefault() returns default value for ref Type Program (null) if collection is empty.
+                // '??' null coalescing operator returns the right operand if the left operand is null.
+                Program = Programs.FirstOrDefault() ?? await CreateInitialProgramAsync();
 
-                    if (existingProgram != null)
-                    {
-                        Program = existingProgram;
-                    }
-                    else
-                    {
-                        // Create a new program if none exist
-                        var newProgram = new Program
-                        {
-                            Name = $"{Program.Organization.Name} Program",
-                            Organization = Program.Organization
-                        };
-                        Program = await _apiService.CreateProgramAsync(Program.Organization.Id, newProgram);
-                    }
-                }
-
-                // Now load operating units (using the valid Program.Id)
+                // Now load operating units for the selected program
                 var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
                 OperatingUnits.Clear();
                 foreach (var unit in units)
@@ -92,9 +74,9 @@ namespace AdminClient.ViewModels
                 }
 
                 // Load bundles
-                var programBundles = await _apiService.GetBundleDefinitionsForProgramAsync(Program.Id);
+                var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(Program.Id);
                 Bundles.Clear();
-                foreach (var bundle in programBundles)
+                foreach (var bundle in bundles)
                 {
                     Bundles.Add(bundle);
                 }
@@ -108,7 +90,21 @@ namespace AdminClient.ViewModels
                 IsLoading = false;
             }
         }
-        
+
+        /// <summary>
+        /// Persist an empty Program to DB
+        /// </summary>
+        /// <returns></returns>
+        private async Task<Program> CreateInitialProgramAsync()
+        {
+            var newProgram = new Program
+            {
+                Name = $"{Organization.Name} Program",
+                Organization = Organization
+            };
+            return await _apiService.CreateProgramAsync(Organization.Id, newProgram);
+        }
+
         [RelayCommand]
         private async Task CreateOperatingUnit()
         {

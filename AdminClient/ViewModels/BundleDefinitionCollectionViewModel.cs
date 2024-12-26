@@ -1,5 +1,6 @@
 ﻿using AdminClient.Models;
 using AdminClient.Services;
+using AdminClient.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
 
@@ -43,20 +44,22 @@ namespace AdminClient.ViewModels
 
         protected override async Task AddAsync()
         {
+            // Create and setup dialog
+            var dialogViewModel = new CreateBundleDefinitionViewModel(_apiService, _program);
+            var dialog = new CreateBundleDefinitionDialog { DataContext = dialogViewModel };
+
             try
             {
                 IsLoading = true;
                 ErrorMessage = null;
 
-                var newBundle = new BundleDefinition
+                dialogViewModel.BundleCreated += (s, newBundle) =>
                 {
-                    Name = $"New Bundle Definition {Items.Count + 1}",
-                    Program = _program,
-                    Status = BundleStatus.DRAFT
+                    Items.Add(newBundle);
                 };
 
-                var createdBundle = await _apiService.CreateBundleDefinitionAsync(_program.Id, newBundle);
-                Items.Add(createdBundle);
+                // Show dialog and wait for result
+                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
             }
             catch (Exception ex)
             {

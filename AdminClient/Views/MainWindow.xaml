@@ -6,6 +6,7 @@
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
         xmlns:vm="clr-namespace:AdminClient.ViewModels"
         xmlns:views="clr-namespace:AdminClient.Views"
+        xmlns:views1="clr-namespace:AdminClient.Views.Forms"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         Style="{StaticResource MaterialDesignWindow}"
         TextElement.FontWeight="Regular"
@@ -26,6 +27,21 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:BundleDefinitionViewModel}">
             <views:BundleDefinitionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OrganizationDetailViewModel}">
+            <views1:OrganizationDetailForm />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OperatingUnitDetailViewModel}">
+            <views:OperatingUnitDetailForm />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProgramCollectionViewModel}">
+            <views:ProgramCollectionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OperatingUnitCollectionViewModel}">
+            <views:OperatingUnitCollectionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:BundleDefinitionCollectionViewModel}">
+            <views:BundleDefinitionCollectionView />
         </DataTemplate>
     </Window.Resources>
 

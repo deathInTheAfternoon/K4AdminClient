@@ -52,33 +52,40 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
-                // First load all programs for the organization. Remember, organization is a c'tor argument.
+                if (Organization == null)
+                {
+                    ErrorMessage = "Organization reference is missing";
+                    return;
+                }
+
+                // Load programs for the organization
                 var orgPrograms = await _apiService.GetProgramsForOrganizationAsync(Organization.Id);
-                // Clear the existing Programs collection and add the new ones
                 Programs.Clear();
                 foreach (var prog in orgPrograms)
                 {
                     Programs.Add(prog);
                 }
 
-                // FirstOrDefault() returns default value for ref Type Program (null) if collection is empty.
-                // '??' null coalescing operator returns the right operand if the left operand is null.
+                // Set the current program or create initial if none exists
                 Program = Programs.FirstOrDefault() ?? await CreateInitialProgramAsync();
 
-                // Now load operating units for the selected program
-                var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
-                OperatingUnits.Clear();
-                foreach (var unit in units)
+                // Load operating units for the selected program
+                if (Program != null)
                 {
-                    OperatingUnits.Add(unit);
-                }
+                    var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
+                    OperatingUnits.Clear();
+                    foreach (var unit in units)
+                    {
+                        OperatingUnits.Add(unit);
+                    }
 
-                // Load bundles
-                var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(Program.Id);
-                Bundles.Clear();
-                foreach (var bundle in bundles)
-                {
-                    Bundles.Add(bundle);
+                    // Load bundles
+                    var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(Program.Id);
+                    Bundles.Clear();
+                    foreach (var bundle in bundles)
+                    {
+                        Bundles.Add(bundle);
+                    }
                 }
             }
             catch (Exception ex)

@@ -42,21 +42,6 @@ namespace AdminClient.ViewModels
         {
             _apiService = apiService;
 
-            // Initialize the ViewModel factories
-            _viewModelFactories = new Dictionary<TreeNodeType, Func<TreeNodeViewModel, object>>
-            {
-                { TreeNodeType.Root, _ => new CollectionViewModel("Organizations") }, // Placeholder
-                { TreeNodeType.Organization, node => new OrganizationViewModel(_apiService) },
-                { TreeNodeType.Programs, _ => new CollectionViewModel("Programs") }, // Placeholder
-                { TreeNodeType.Program, node => new ProgramViewModel(_apiService, (Organization)node.Parent.ModelObject) { Program = (Models.Program)node.ModelObject } },
-                { TreeNodeType.OperatingUnits, _ => new CollectionViewModel("Operating Units") }, // Placeholder
-                { TreeNodeType.OperatingUnit, node => new OperatingUnitViewModel(_apiService, (OperatingUnit)node.ModelObject) },
-                { TreeNodeType.BundleDefinitions, _ => new CollectionViewModel("Bundle Definitions") }, // Placeholder
-                { TreeNodeType.BundleDefinition, node => new BundleDefinitionViewModel(_apiService, (BundleDefinition)node.ModelObject) },
-                { TreeNodeType.ActivityDefinitions, _ => new CollectionViewModel("Activity Definitions") }, // Placeholder
-                { TreeNodeType.ActivityDefinition, node => new LeafView() } // Placeholder for future ActivityDefinitionViewModel
-            };
-
             var orgViewModel = new OrganizationViewModel(_apiService);
             // Add handler for when an organization is selected
             orgViewModel.OrganizationSelected += OnOrganizationSelected;
@@ -170,15 +155,15 @@ namespace AdminClient.ViewModels
                 foreach (var org in orgs)
                 {
                     var orgNode = new TreeNodeViewModel(org.Name, TreeNodeType.Organization, org);
-                    rootNode.Children.Add(orgNode);
+                    rootNode.AddChild(orgNode);
 
                     var programsNode = new TreeNodeViewModel("Programs", TreeNodeType.Programs);
-                    orgNode.Children.Add(programsNode);
+                    orgNode.AddChild(programsNode);
 
                     var programs = await _apiService.GetProgramsForOrganizationAsync(org.Id);
                     foreach (var program in programs)
                     {
-                        AddProgramNode(programsNode, program);
+                        await AddProgramNode(programsNode, program);
                     }
                 }
             }
@@ -192,27 +177,27 @@ namespace AdminClient.ViewModels
         private async Task AddProgramNode(TreeNodeViewModel programsNode, Program program)
         {
             var programNode = new TreeNodeViewModel(program.Name, TreeNodeType.Program, program);
-            programsNode.Children.Add(programNode);
+            programsNode.AddChild(programNode);
 
             // ADD Operating Units with real data
             var operatingUnitsNode = new TreeNodeViewModel("Operating Units", TreeNodeType.OperatingUnits);
-            programNode.Children.Add(operatingUnitsNode);
+            programNode.AddChild(operatingUnitsNode);
 
             var operatingUnits = await _apiService.GetOperatingUnitsForProgramAsync(program.Id);
             foreach (var unit in operatingUnits)
             {
                 var unitNode = new TreeNodeViewModel(unit.Name, TreeNodeType.OperatingUnit, unit);
-                operatingUnitsNode.Children.Add(unitNode);
+                operatingUnitsNode.AddChild(unitNode);
             }
 
             var bundleDefsNode = new TreeNodeViewModel("Bundle Definitions", TreeNodeType.BundleDefinitions);
-            programNode.Children.Add(bundleDefsNode);
+            programNode.AddChild(bundleDefsNode);
 
             var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(program.Id);
             foreach (var bundle in bundles)
             {
                 var bundleNode = new TreeNodeViewModel(bundle.Name, TreeNodeType.BundleDefinition, bundle);
-                bundleDefsNode.Children.Add(bundleNode);
+                bundleDefsNode.AddChild(bundleNode);
             }
         }
 
@@ -222,6 +207,50 @@ namespace AdminClient.ViewModels
 
             try
             {
+                if (selectedNode.IsCollectionNode)
+                {
+                    switch (selectedNode.NodeType)
+                    {
+                        case TreeNodeType.Root:
+                            NavigateToOrganizations();
+                            break;
+                        case TreeNodeType.Programs:
+                            if (selectedNode.Parent?.ModelObject is Organization parentOrg)
+                            {
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var programCollectionViewModel = new ProgramCollectionViewModel(_apiService, parentOrg);
+                                CurrentViewModel = programCollectionViewModel;
+                                CurrentViewTitle = programCollectionViewModel.CollectionTitle;
+                                CanNavigateBack = true;
+                            }
+                            break;
+                        case TreeNodeType.OperatingUnits:
+                            if (selectedNode.Parent?.ModelObject is Program parentProgramForOU)
+                            {
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var operatingUnitCollectionViewModel = new OperatingUnitCollectionViewModel(_apiService, parentProgramForOU);
+                                CurrentViewModel = operatingUnitCollectionViewModel;
+                                CurrentViewTitle = operatingUnitCollectionViewModel.CollectionTitle;
+                                CanNavigateBack = true;
+                            }
+                            break;
+                        case TreeNodeType.BundleDefinitions:
+                            if (selectedNode.Parent?.ModelObject is Program parentProgramForBD)
+                            {
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var bundleCollectionViewModel = new BundleDefinitionCollectionViewModel(_apiService, parentProgramForBD);
+                                CurrentViewModel = bundleCollectionViewModel;
+                                CurrentViewTitle = bundleCollectionViewModel.CollectionTitle;
+                                CanNavigateBack = true;
+                            }
+                            break;
+                        // Add other collection cases
+                        default:
+                            // Handle unknown collection type
+                            break;
+                    }
+                    return;
+                }
                 // MODIFY switch statement to handle all node types
                 switch (selectedNode.NodeType)
                 {
@@ -229,8 +258,11 @@ namespace AdminClient.ViewModels
                     case TreeNodeType.Organization:
                         if (selectedNode.ModelObject is Organization org)
                         {
-                            // Existing organization navigation remains unchanged
-                            OnOrganizationSelected(this, org);
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                            var detailViewModel = new OrganizationDetailViewModel(_apiService, org);
+                            CurrentViewModel = detailViewModel;
+                            CurrentViewTitle = $"Organization - {org.Name}";
+                            CanNavigateBack = true;
                         }
                         break;
 
@@ -238,17 +270,24 @@ namespace AdminClient.ViewModels
                     case TreeNodeType.Program:
                         if (selectedNode.ModelObject is Program program)
                         {
-                            // Save current state to navigation stack
-                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
-
-                            // Create and set new program view model
-                            var programViewModel = new ProgramViewModel(_apiService, program.Organization)
+                            try
                             {
-                                Program = program
-                            };
-                            CurrentViewModel = programViewModel;
-                            CurrentViewTitle = $"Program - {program.Name}";
-                            CanNavigateBack = true;
+                                // Fetch the complete program details including organization.
+                                var completeProgram = await _apiService.GetProgramAsync(program.Id);
+
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var programViewModel = new ProgramViewModel(_apiService, completeProgram.Organization)
+                                {
+                                    Program = completeProgram
+                                };
+                                CurrentViewModel = programViewModel;
+                                CurrentViewTitle = $"Program - {completeProgram.Name}";
+                                CanNavigateBack = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Error loading program details: {ex.Message}");
+                            }
                         }
                         break;
                     case TreeNodeType.OperatingUnit:
@@ -256,9 +295,8 @@ namespace AdminClient.ViewModels
                         {
                             _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
 
-                            // We'll need to create OperatingUnitViewModel in the next micro-feature
-                            var operatingUnitViewModel = new OperatingUnitViewModel(_apiService, unit);
-                            CurrentViewModel = operatingUnitViewModel;
+                            var detailViewModel = new OperatingUnitDetailViewModel(_apiService, unit);
+                            CurrentViewModel = detailViewModel;
                             CurrentViewTitle = $"Operating Unit - {unit.Name}";
                             CanNavigateBack = true;
                         }
@@ -269,7 +307,6 @@ namespace AdminClient.ViewModels
                         {
                             _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
 
-                            // We'll need to create BundleDefinitionViewModel in the next micro-feature
                             var bundleViewModel = new BundleDefinitionViewModel(_apiService, bundle);
                             CurrentViewModel = bundleViewModel;
                             CurrentViewTitle = $"Bundle - {bundle.Name}";
@@ -289,6 +326,28 @@ namespace AdminClient.ViewModels
             {
                 MessageBox.Show($"Error handling selection: {ex.Message}");
             }
+        }
+
+        private void NavigateToOrganizations()
+        {
+            if (CurrentViewModel is OrganizationViewModel oldViewModel)
+            {
+                oldViewModel.OrganizationSelected -= OnOrganizationSelected;
+            }
+
+            var orgViewModel = new OrganizationViewModel(_apiService);
+            orgViewModel.OrganizationSelected += OnOrganizationSelected;
+            CurrentViewModel = orgViewModel;
+            CurrentViewTitle = "Organizations";
+        }
+
+        private void NavigateToPrograms(Organization organization)
+        {
+            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+            var programViewModel = new ProgramViewModel(_apiService, organization);
+            CurrentViewModel = programViewModel;
+            CurrentViewTitle = $"Programs - {organization.Name}";
+            CanNavigateBack = true;
         }
     }
 }

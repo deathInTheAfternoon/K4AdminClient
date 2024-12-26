@@ -1,0 +1,26 @@
+﻿<UserControl x:Class="AdminClient.Views.Forms.OrganizationDetailForm"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:AdminClient.Views.Forms"
+             xmlns:components="clr-namespace:AdminClient.Views.Components"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <components:DetailFormBase>
+        <components:DetailFormBase.DetailContent>
+            <StackPanel>
+                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Organization Name"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+
+                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Description"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+            </StackPanel>
+        </components:DetailFormBase.DetailContent>
+    </components:DetailFormBase>
+</UserControl>

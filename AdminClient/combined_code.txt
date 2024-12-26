@@ -700,6 +700,56 @@ namespace AdminClient.Services
 }
 ====== END FILE: ./Services/ApiService.cs ======
 
+====== BEGIN FILE: ./ViewModels/BaseCollectionViewModel.cs ======
+﻿using System.Collections.ObjectModel;
+using System.Windows.Input;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AdminClient.ViewModels
+{
+    public abstract partial class BaseCollectionViewModel<T> : ObservableObject, ICollectionViewModel
+    {
+        protected readonly ApiService _apiService;
+
+        [ObservableProperty]
+        private bool _isLoading;
+
+        [ObservableProperty]
+        private string _errorMessage;
+
+        [ObservableProperty]
+        private ObservableCollection<T> _items = new();
+
+        [ObservableProperty]
+        private T _selectedItem;
+
+        [ObservableProperty]
+        private string _collectionTitle;
+
+        public virtual bool CanAdd => true;
+        public virtual bool CanEdit => SelectedItem != null;
+        public virtual bool CanDelete => SelectedItem != null;
+
+        public ICommand AddCommand => new AsyncRelayCommand(AddAsync);
+        public ICommand EditCommand => new AsyncRelayCommand(EditAsync, () => CanEdit);
+        public ICommand DeleteCommand => new AsyncRelayCommand(DeleteAsync, () => CanDelete);
+
+        protected BaseCollectionViewModel(ApiService apiService)
+        {
+            _apiService = apiService;
+        }
+
+        protected virtual Task AddAsync() => Task.CompletedTask;
+        protected virtual Task EditAsync() => Task.CompletedTask;
+        protected virtual Task DeleteAsync() => Task.CompletedTask;
+
+        protected abstract Task LoadDataAsync();
+    }
+}
+====== END FILE: ./ViewModels/BaseCollectionViewModel.cs ======
+
 ====== BEGIN FILE: ./ViewModels/BundleDefinitionViewModel.cs ======
 ﻿using System;
 using System.Collections.Generic;
@@ -911,6 +961,26 @@ namespace AdminClient.ViewModels
 
 ====== END FILE: ./ViewModels/EditProgramViewModel.cs ======
 
+====== BEGIN FILE: ./ViewModels/ICollectionViewModel.cs ======
+﻿using System.Windows.Input;
+
+namespace AdminClient.ViewModels
+{
+    public interface ICollectionViewModel
+    {
+        bool IsLoading { get; }
+        string ErrorMessage { get; }
+        string CollectionTitle { get; }
+        bool CanAdd { get; }
+        bool CanEdit { get; }
+        bool CanDelete { get; }
+        ICommand AddCommand { get; }
+        ICommand EditCommand { get; }
+        ICommand DeleteCommand { get; }
+    }
+}
+====== END FILE: ./ViewModels/ICollectionViewModel.cs ======
+
 ====== BEGIN FILE: ./ViewModels/MainWindowViewModel.cs ======
 ﻿using System;
 using System.Collections.ObjectModel;
@@ -950,9 +1020,12 @@ namespace AdminClient.ViewModels
         // Reference to the API service that we will pass down to other ViewModels
         private readonly ApiService _apiService;
 
+        // Dictionary to map TreeNodeType to ViewModel type
+        private readonly Dictionary<TreeNodeType, Func<TreeNodeViewModel, object>> _viewModelFactories;
         public MainWindowViewModel(ApiService apiService)
         {
             _apiService = apiService;
+
             var orgViewModel = new OrganizationViewModel(_apiService);
             // Add handler for when an organization is selected
             orgViewModel.OrganizationSelected += OnOrganizationSelected;
@@ -1066,15 +1139,15 @@ namespace AdminClient.ViewModels
                 foreach (var org in orgs)
                 {
                     var orgNode = new TreeNodeViewModel(org.Name, TreeNodeType.Organization, org);
-                    rootNode.Children.Add(orgNode);
+                    rootNode.AddChild(orgNode);
 
                     var programsNode = new TreeNodeViewModel("Programs", TreeNodeType.Programs);
-                    orgNode.Children.Add(programsNode);
+                    orgNode.AddChild(programsNode);
 
                     var programs = await _apiService.GetProgramsForOrganizationAsync(org.Id);
                     foreach (var program in programs)
                     {
-                        AddProgramNode(programsNode, program);
+                        await AddProgramNode(programsNode, program);
                     }
                 }
             }
@@ -1088,27 +1161,27 @@ namespace AdminClient.ViewModels
         private async Task AddProgramNode(TreeNodeViewModel programsNode, Program program)
         {
             var programNode = new TreeNodeViewModel(program.Name, TreeNodeType.Program, program);
-            programsNode.Children.Add(programNode);
+            programsNode.AddChild(programNode);
 
             // ADD Operating Units with real data
             var operatingUnitsNode = new TreeNodeViewModel("Operating Units", TreeNodeType.OperatingUnits);
-            programNode.Children.Add(operatingUnitsNode);
+            programNode.AddChild(operatingUnitsNode);
 
             var operatingUnits = await _apiService.GetOperatingUnitsForProgramAsync(program.Id);
             foreach (var unit in operatingUnits)
             {
                 var unitNode = new TreeNodeViewModel(unit.Name, TreeNodeType.OperatingUnit, unit);
-                operatingUnitsNode.Children.Add(unitNode);
+                operatingUnitsNode.AddChild(unitNode);
             }
 
             var bundleDefsNode = new TreeNodeViewModel("Bundle Definitions", TreeNodeType.BundleDefinitions);
-            programNode.Children.Add(bundleDefsNode);
+            programNode.AddChild(bundleDefsNode);
 
             var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(program.Id);
             foreach (var bundle in bundles)
             {
                 var bundleNode = new TreeNodeViewModel(bundle.Name, TreeNodeType.BundleDefinition, bundle);
-                bundleDefsNode.Children.Add(bundleNode);
+                bundleDefsNode.AddChild(bundleNode);
             }
         }
 
@@ -1118,6 +1191,40 @@ namespace AdminClient.ViewModels
 
             try
             {
+                if (selectedNode.IsCollectionNode)
+                {
+                    switch (selectedNode.NodeType)
+                    {
+                        case TreeNodeType.Root:
+                            NavigateToOrganizations();
+                            break;
+                        case TreeNodeType.Programs:
+                            if (selectedNode.Parent?.ModelObject is Organization parentOrg)
+                            {
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var programCollectionViewModel = new ProgramCollectionViewModel(_apiService, parentOrg);
+                                CurrentViewModel = programCollectionViewModel;
+                                CurrentViewTitle = programCollectionViewModel.CollectionTitle;
+                                CanNavigateBack = true;
+                            }
+                            break;
+                        case TreeNodeType.OperatingUnits:
+                            if (selectedNode.Parent?.ModelObject is Program parentProgram)
+                            {
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var operatingUnitCollectionViewModel = new OperatingUnitCollectionViewModel(_apiService, parentProgram);
+                                CurrentViewModel = operatingUnitCollectionViewModel;
+                                CurrentViewTitle = operatingUnitCollectionViewModel.CollectionTitle;
+                                CanNavigateBack = true;
+                            }
+                            break;
+                        // Add other collection cases
+                        default:
+                            // Handle unknown collection type
+                            break;
+                    }
+                    return;
+                }
                 // MODIFY switch statement to handle all node types
                 switch (selectedNode.NodeType)
                 {
@@ -1125,8 +1232,11 @@ namespace AdminClient.ViewModels
                     case TreeNodeType.Organization:
                         if (selectedNode.ModelObject is Organization org)
                         {
-                            // Existing organization navigation remains unchanged
-                            OnOrganizationSelected(this, org);
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                            var detailViewModel = new OrganizationDetailViewModel(_apiService, org);
+                            CurrentViewModel = detailViewModel;
+                            CurrentViewTitle = $"Organization - {org.Name}";
+                            CanNavigateBack = true;
                         }
                         break;
 
@@ -1134,17 +1244,24 @@ namespace AdminClient.ViewModels
                     case TreeNodeType.Program:
                         if (selectedNode.ModelObject is Program program)
                         {
-                            // Save current state to navigation stack
-                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
-
-                            // Create and set new program view model
-                            var programViewModel = new ProgramViewModel(_apiService, program.Organization)
+                            try
                             {
-                                Program = program
-                            };
-                            CurrentViewModel = programViewModel;
-                            CurrentViewTitle = $"Program - {program.Name}";
-                            CanNavigateBack = true;
+                                // Fetch the complete program details including organization.
+                                var completeProgram = await _apiService.GetProgramAsync(program.Id);
+
+                                _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                                var programViewModel = new ProgramViewModel(_apiService, completeProgram.Organization)
+                                {
+                                    Program = completeProgram
+                                };
+                                CurrentViewModel = programViewModel;
+                                CurrentViewTitle = $"Program - {completeProgram.Name}";
+                                CanNavigateBack = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Error loading program details: {ex.Message}");
+                            }
                         }
                         break;
                     case TreeNodeType.OperatingUnit:
@@ -1152,9 +1269,8 @@ namespace AdminClient.ViewModels
                         {
                             _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
 
-                            // We'll need to create OperatingUnitViewModel in the next micro-feature
-                            var operatingUnitViewModel = new OperatingUnitViewModel(_apiService, unit);
-                            CurrentViewModel = operatingUnitViewModel;
+                            var detailViewModel = new OperatingUnitDetailViewModel(_apiService, unit);
+                            CurrentViewModel = detailViewModel;
                             CurrentViewTitle = $"Operating Unit - {unit.Name}";
                             CanNavigateBack = true;
                         }
@@ -1165,7 +1281,6 @@ namespace AdminClient.ViewModels
                         {
                             _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
 
-                            // We'll need to create BundleDefinitionViewModel in the next micro-feature
                             var bundleViewModel = new BundleDefinitionViewModel(_apiService, bundle);
                             CurrentViewModel = bundleViewModel;
                             CurrentViewTitle = $"Bundle - {bundle.Name}";
@@ -1186,9 +1301,269 @@ namespace AdminClient.ViewModels
                 MessageBox.Show($"Error handling selection: {ex.Message}");
             }
         }
+
+        private void NavigateToOrganizations()
+        {
+            if (CurrentViewModel is OrganizationViewModel oldViewModel)
+            {
+                oldViewModel.OrganizationSelected -= OnOrganizationSelected;
+            }
+
+            var orgViewModel = new OrganizationViewModel(_apiService);
+            orgViewModel.OrganizationSelected += OnOrganizationSelected;
+            CurrentViewModel = orgViewModel;
+            CurrentViewTitle = "Organizations";
+        }
+
+        private void NavigateToPrograms(Organization organization)
+        {
+            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+            var programViewModel = new ProgramViewModel(_apiService, organization);
+            CurrentViewModel = programViewModel;
+            CurrentViewTitle = $"Programs - {organization.Name}";
+            CanNavigateBack = true;
+        }
     }
 }
 ====== END FILE: ./ViewModels/MainWindowViewModel.cs ======
+
+====== BEGIN FILE: ./ViewModels/OperatingUnitCollectionViewModel.cs ======
+﻿using AdminClient.Models;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MaterialDesignThemes.Wpf;
+using System.Collections.ObjectModel;
+using System.Windows.Controls;
+
+namespace AdminClient.ViewModels
+{
+    public partial class OperatingUnitCollectionViewModel : BaseCollectionViewModel<OperatingUnit>
+    {
+        private readonly Program _program;
+        public event EventHandler<OperatingUnit> OperatingUnitSelected;
+
+        [ObservableProperty]
+        private ObservableCollection<User> _hcps = new();
+
+        [ObservableProperty]
+        private ObservableCollection<User> _subjects = new();
+
+        public OperatingUnitCollectionViewModel(ApiService apiService, Program program)
+            : base(apiService)
+        {
+            _program = program;
+            CollectionTitle = $"Operating Units - {program.Name}";
+            LoadDataAsync().ConfigureAwait(false);
+        }
+
+        protected override async Task LoadDataAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                var operatingUnits = await _apiService.GetOperatingUnitsForProgramAsync(_program.Id);
+                Items.Clear();
+                foreach (var unit in operatingUnits)
+                {
+                    Items.Add(unit);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading operating units: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        protected override async Task AddAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                var newUnit = new OperatingUnit
+                {
+                    Name = $"New Operating Unit {Items.Count + 1}",
+                    Program = _program
+                };
+
+                var createdUnit = await _apiService.CreateOperatingUnitAsync(_program.Id, newUnit);
+                Items.Add(createdUnit);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error creating operating unit: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task ViewHcps(OperatingUnit operatingUnit)
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                // TODO: Add API endpoint for getting HCPs
+                // var hcps = await _apiService.GetHcpsForOperatingUnitAsync(operatingUnit.Id);
+
+                // For now, showing a dialog indicating the feature is coming soon
+                await DialogHost.Show(new MaterialDesignThemes.Wpf.Card
+                {
+                    Content = new TextBlock
+                    {
+                        Text = "HCP viewing coming soon",
+                        Margin = new System.Windows.Thickness(16)
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading HCPs: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task ViewSubjects(OperatingUnit operatingUnit)
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                // TODO: Add API endpoint for getting Subjects
+                // var subjects = await _apiService.GetSubjectsForOperatingUnitAsync(operatingUnit.Id);
+
+                // For now, showing a dialog indicating the feature is coming soon
+                await DialogHost.Show(new MaterialDesignThemes.Wpf.Card
+                {
+                    Content = new TextBlock
+                    {
+                        Text = "Subject viewing coming soon",
+                        Margin = new System.Windows.Thickness(16)
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading subjects: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+    }
+}
+====== END FILE: ./ViewModels/OperatingUnitCollectionViewModel.cs ======
+
+====== BEGIN FILE: ./ViewModels/OperatingUnitDetailViewModel.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AdminClient.Models;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AdminClient.ViewModels
+{
+    public partial class OperatingUnitDetailViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
+        private readonly OperatingUnit _operatingUnit;
+
+        [ObservableProperty]
+        private bool _isLoading;
+
+        [ObservableProperty]
+        private string _errorMessage;
+
+        [ObservableProperty]
+        private string _name;
+
+        [ObservableProperty]
+        private Program _program;
+
+        public OperatingUnitDetailViewModel(ApiService apiService, OperatingUnit operatingUnit)
+        {
+            _apiService = apiService;
+            _operatingUnit = operatingUnit;
+            Name = operatingUnit.Name;
+            Program = operatingUnit.Program;
+            LoadDataAsync().ConfigureAwait(false);
+        }
+
+        private async Task LoadDataAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                var ouDetails = await _apiService.GetOperatingUnitAsync(_operatingUnit.Id);
+                // Update additional fields when available
+
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading operating unit details: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task Save()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                _operatingUnit.Name = Name;
+                // TODO: Add API endpoint for updating
+                //await _apiService.UpdateOperatingUnitAsync(_operatingUnit);
+
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error saving operating unit: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private void Cancel()
+        {
+            // Handle cancel action
+        }
+    }
+}
+
+====== END FILE: ./ViewModels/OperatingUnitDetailViewModel.cs ======
 
 ====== BEGIN FILE: ./ViewModels/OperatingUnitViewModel.cs ======
 ﻿using System;
@@ -1255,6 +1630,102 @@ namespace AdminClient.ViewModels
 }
 
 ====== END FILE: ./ViewModels/OperatingUnitViewModel.cs ======
+
+====== BEGIN FILE: ./ViewModels/OrganizationDetailViewModel.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AdminClient.Models;
+using AdminClient.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AdminClient.ViewModels
+{
+    public partial class OrganizationDetailViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
+        private readonly Organization _organization;
+
+        [ObservableProperty]
+        private bool _isLoading;
+
+        [ObservableProperty]
+        private string _errorMessage;
+
+        [ObservableProperty]
+        private string _name;
+
+        [ObservableProperty]
+        private string _description;
+
+        public OrganizationDetailViewModel(ApiService apiService, Organization organization)
+        {
+            _apiService = apiService;
+            _organization = organization;
+            Name = organization.Name;
+            // Add other properties as needed
+            LoadDataAsync().ConfigureAwait(false);
+        }
+
+        private async Task LoadDataAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                // Load additional organization details if needed
+                var orgDetails = await _apiService.GetOrganizationAsync(_organization.Id);
+                // Populate additional fields
+
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading organization details: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task Save()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                _organization.Name = Name;
+                // Update other properties
+
+                // TODO: Add API endpoint for updating
+                //await _apiService.UpdateOrganizationAsync(_organization);
+
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error saving organization: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        private void Cancel()
+        {
+            // Handle cancel action
+        }
+    }
+}
+
+====== END FILE: ./ViewModels/OrganizationDetailViewModel.cs ======
 
 ====== BEGIN FILE: ./ViewModels/OrganizationViewModel.cs ======
 ﻿using System.Collections.ObjectModel;
@@ -1383,6 +1854,100 @@ namespace AdminClient.ViewModels
 }
 ====== END FILE: ./ViewModels/OrganizationViewModel.cs ======
 
+====== BEGIN FILE: ./ViewModels/ProgramCollectionViewModel.cs ======
+﻿using AdminClient.Models;
+using AdminClient.Services;
+using AdminClient.Views;
+using CommunityToolkit.Mvvm.ComponentModel;
+using MaterialDesignThemes.Wpf;
+
+namespace AdminClient.ViewModels
+{
+    public partial class ProgramCollectionViewModel : BaseCollectionViewModel<Program>
+    {
+        private readonly Organization _organization;
+        public event EventHandler<Program> ProgramSelected;
+
+        public ProgramCollectionViewModel(ApiService apiService, Organization organization)
+            : base(apiService)
+        {
+            _organization = organization;
+            CollectionTitle = $"Programs - {organization.Name}";
+            LoadDataAsync().ConfigureAwait(false);
+        }
+
+        protected override async Task LoadDataAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                var programs = await _apiService.GetProgramsForOrganizationAsync(_organization.Id);
+                Items.Clear();
+                foreach (var program in programs)
+                {
+                    Items.Add(program);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error loading programs: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        protected override async Task AddAsync()
+        {
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                var newProgram = new Program
+                {
+                    Name = $"New Program {Items.Count + 1}",
+                    Organization = _organization
+                };
+
+                var createdProgram = await _apiService.CreateProgramAsync(_organization.Id, newProgram);
+                Items.Add(createdProgram);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error creating program: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        protected override async Task EditAsync()
+        {
+            if (SelectedItem == null) return;
+
+            var dialogViewModel = new EditProgramViewModel(_apiService, SelectedItem);
+            var dialog = new EditProgramDialog { DataContext = dialogViewModel };
+
+            dialogViewModel.ProgramUpdated += (s, updatedProgram) =>
+            {
+                var index = Items.IndexOf(SelectedItem);
+                if (index != -1)
+                {
+                    Items[index] = updatedProgram;
+                }
+            };
+
+            await DialogHost.Show(dialog);
+        }
+    }
+}
+====== END FILE: ./ViewModels/ProgramCollectionViewModel.cs ======
+
 ====== BEGIN FILE: ./ViewModels/ProgramViewModel.cs ======
 ﻿using System.Collections.ObjectModel;
 using AdminClient.Models;
@@ -1438,33 +2003,40 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
-                // First load all programs for the organization. Remember, organization is a c'tor argument.
+                if (Organization == null)
+                {
+                    ErrorMessage = "Organization reference is missing";
+                    return;
+                }
+
+                // Load programs for the organization
                 var orgPrograms = await _apiService.GetProgramsForOrganizationAsync(Organization.Id);
-                // Clear the existing Programs collection and add the new ones
                 Programs.Clear();
                 foreach (var prog in orgPrograms)
                 {
                     Programs.Add(prog);
                 }
 
-                // FirstOrDefault() returns default value for ref Type Program (null) if collection is empty.
-                // '??' null coalescing operator returns the right operand if the left operand is null.
+                // Set the current program or create initial if none exists
                 Program = Programs.FirstOrDefault() ?? await CreateInitialProgramAsync();
 
-                // Now load operating units for the selected program
-                var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
-                OperatingUnits.Clear();
-                foreach (var unit in units)
+                // Load operating units for the selected program
+                if (Program != null)
                 {
-                    OperatingUnits.Add(unit);
-                }
+                    var units = await _apiService.GetOperatingUnitsForProgramAsync(Program.Id);
+                    OperatingUnits.Clear();
+                    foreach (var unit in units)
+                    {
+                        OperatingUnits.Add(unit);
+                    }
 
-                // Load bundles
-                var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(Program.Id);
-                Bundles.Clear();
-                foreach (var bundle in bundles)
-                {
-                    Bundles.Add(bundle);
+                    // Load bundles
+                    var bundles = await _apiService.GetBundleDefinitionsForProgramAsync(Program.Id);
+                    Bundles.Clear();
+                    foreach (var bundle in bundles)
+                    {
+                        Bundles.Add(bundle);
+                    }
                 }
             }
             catch (Exception ex)
@@ -1610,6 +2182,9 @@ namespace AdminClient.ViewModels
         private string _name;
 
         [ObservableProperty]
+        private TreeNodeViewModel _parent;
+
+        [ObservableProperty]
         private ObservableCollection<TreeNodeViewModel> _children = new();
 
         [ObservableProperty]
@@ -1634,6 +2209,12 @@ namespace AdminClient.ViewModels
                 or TreeNodeType.ActivityDefinitions;
 
         }
+
+        public void AddChild(TreeNodeViewModel child)
+        {
+            child.Parent = this;
+            Children.Add(child);
+        }
     }
 
     // Enum to identify node types in our domain
@@ -1652,6 +2233,91 @@ namespace AdminClient.ViewModels
     }
 }
 ====== END FILE: ./ViewModels/TreeNodeViewModel.cs ======
+
+====== BEGIN FILE: ./Views/BaseCollectionView.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.BaseCollectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Collection Title -->
+        <TextBlock Grid.Row="0" 
+                   Text="{Binding CollectionTitle}"
+                   Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                   Margin="0,0,0,16"/>
+
+        <!-- Error Message -->
+        <TextBlock Grid.Row="0" 
+                   Text="{Binding ErrorMessage}"
+                   Foreground="Red"
+                   Margin="0,0,0,10"
+                   HorizontalAlignment="Right"
+                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+        <!-- Actions Bar -->
+        <StackPanel Grid.Row="1" 
+                    Orientation="Horizontal" 
+                    Margin="0,0,0,16">
+            <Button Content="Add"
+                    Command="{Binding AddCommand}"
+                    Style="{StaticResource MaterialDesignFlatButton}"
+                    Visibility="{Binding CanAdd, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <Button Content="Edit"
+                    Command="{Binding EditCommand}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Margin="8,0,0,0"
+                    Visibility="{Binding CanEdit, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <Button Content="Delete"
+                    Command="{Binding DeleteCommand}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Margin="8,0,0,0"
+                    Visibility="{Binding CanDelete, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </StackPanel>
+
+        <!-- Content is provided by derived views -->
+        <ContentPresenter Grid.Row="2" 
+                         Content="{Binding ViewContent}"/>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.RowSpan="3"
+              Background="#80000000"
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                        IsIndeterminate="True"/>
+        </Grid>
+    </Grid>
+</UserControl>
+
+====== END FILE: ./Views/BaseCollectionView.xaml ======
+
+====== BEGIN FILE: ./Views/BaseCollectionView.xaml.cs ======
+﻿using System.Windows.Controls;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for BaseCollectionView.xaml
+    /// </summary>
+    public partial class BaseCollectionView : UserControl
+    {
+        public BaseCollectionView()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/BaseCollectionView.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/BundleDefinitionView.xaml ======
 ﻿<UserControl x:Class="AdminClient.Views.BundleDefinitionView"
@@ -1753,6 +2419,101 @@ namespace AdminClient.Views
 }
 
 ====== END FILE: ./Views/BundleDefinitionView.xaml.cs ======
+
+====== BEGIN FILE: ./Views/Components/DetailFormBase.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.Components.DetailFormBase"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Error Message -->
+        <TextBlock Grid.Row="0" 
+                   Text="{Binding ErrorMessage}"
+                   Foreground="Red"
+                   Margin="0,0,0,10"
+                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+        <!-- Form Content -->
+        <ContentPresenter Grid.Row="1" 
+                         Content="{Binding DetailContent, 
+                         RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    VerticalAlignment="Bottom"
+                    Margin="0,20,0,0">
+            <Button Content="Save"
+                    Command="{Binding SaveCommand}"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Margin="0,0,8,0"/>
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"/>
+        </StackPanel>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.RowSpan="3"
+              Background="#80000000"
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                        IsIndeterminate="True"/>
+        </Grid>
+    </Grid>
+</UserControl>
+
+====== END FILE: ./Views/Components/DetailFormBase.xaml ======
+
+====== BEGIN FILE: ./Views/Components/DetailFormBase.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views.Components
+{
+    /// <summary>
+    /// Interaction logic for DetailFormBase.xaml
+    /// </summary>
+    public partial class DetailFormBase : UserControl
+    {
+        public DetailFormBase()
+        {
+            InitializeComponent();
+        }
+
+        public static readonly DependencyProperty DetailContentProperty = DependencyProperty.Register("FormContent", typeof(object), typeof(DetailFormBase));
+
+        public object DetailContent
+        {
+            get => GetValue(DetailContentProperty);
+            set => SetValue(DetailContentProperty, value);
+        }
+    }
+}
+
+====== END FILE: ./Views/Components/DetailFormBase.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/EditOrganizationDialog.xaml ======
 ﻿<!-- EditOrganizationDialog.xaml -->
@@ -1895,6 +2656,159 @@ namespace AdminClient.Views
 
 ====== END FILE: ./Views/EditProgramDialog.xaml.cs ======
 
+====== BEGIN FILE: ./Views/Forms/OrganizationDetailForm.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.Forms.OrganizationDetailForm"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:AdminClient.Views.Forms"
+             xmlns:components="clr-namespace:AdminClient.Views.Components"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <components:DetailFormBase>
+        <components:DetailFormBase.DetailContent>
+            <StackPanel>
+                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Organization Name"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+
+                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Description"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+            </StackPanel>
+        </components:DetailFormBase.DetailContent>
+    </components:DetailFormBase>
+</UserControl>
+
+====== END FILE: ./Views/Forms/OrganizationDetailForm.xaml ======
+
+====== BEGIN FILE: ./Views/Forms/OrganizationDetailForm.xaml.cs ======
+﻿using System.Windows.Controls;
+
+namespace AdminClient.Views.Forms
+{
+    /// <summary>
+    /// Interaction logic for OrganizationDetailForm.xaml
+    /// </summary>
+    public partial class OrganizationDetailForm : UserControl
+    {
+        public OrganizationDetailForm()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/Forms/OrganizationDetailForm.xaml.cs ======
+
+====== BEGIN FILE: ./Views/Forms/ProgramDetailForm.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.Forms.ProgramDetailForm"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:components="clr-namespace:AdminClient.Views.Components"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <components:DetailFormBase>
+        <components:DetailFormBase.DetailContent>
+            <StackPanel>
+                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Program Name"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+
+                <TextBox Text="{Binding Organization.Name}"
+                         materialDesign:HintAssist.Hint="Organization"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         IsEnabled="False"
+                         Margin="0,8"/>
+
+                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Description"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+            </StackPanel>
+        </components:DetailFormBase.DetailContent>
+    </components:DetailFormBase>
+</UserControl>
+
+====== END FILE: ./Views/Forms/ProgramDetailForm.xaml ======
+
+====== BEGIN FILE: ./Views/Forms/ProgramDetailForm.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views.Forms
+{
+    /// <summary>
+    /// Interaction logic for ProgramDetailForm.xaml
+    /// </summary>
+    public partial class ProgramDetailForm : UserControl
+    {
+        public ProgramDetailForm()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/Forms/ProgramDetailForm.xaml.cs ======
+
+====== BEGIN FILE: ./Views/LeafView.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.LeafView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:AdminClient.ViewModels"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <StackPanel Margin="20">
+        <TextBlock Text="{Binding Name}"
+                  Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
+        <!-- More details will be added later -->
+    </StackPanel>
+</UserControl>
+
+====== END FILE: ./Views/LeafView.xaml ======
+
+====== BEGIN FILE: ./Views/LeafView.xaml.cs ======
+﻿using System.Windows.Controls;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for LeafView.xaml
+    /// </summary>
+    public partial class LeafView : UserControl
+    {
+        public LeafView()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/LeafView.xaml.cs ======
+
 ====== BEGIN FILE: ./Views/MainWindow.xaml ======
 ﻿<Window x:Class="AdminClient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -1904,6 +2818,7 @@ namespace AdminClient.Views
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
         xmlns:vm="clr-namespace:AdminClient.ViewModels"
         xmlns:views="clr-namespace:AdminClient.Views"
+        xmlns:views1="clr-namespace:AdminClient.Views.Forms"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         Style="{StaticResource MaterialDesignWindow}"
         TextElement.FontWeight="Regular"
@@ -1924,6 +2839,18 @@ namespace AdminClient.Views
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:BundleDefinitionViewModel}">
             <views:BundleDefinitionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OrganizationDetailViewModel}">
+            <views1:OrganizationDetailForm />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OperatingUnitDetailViewModel}">
+            <views:OperatingUnitDetailForm />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProgramCollectionViewModel}">
+            <views:ProgramCollectionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OperatingUnitCollectionViewModel}">
+            <views:OperatingUnitCollectionView />
         </DataTemplate>
     </Window.Resources>
 
@@ -2058,6 +2985,153 @@ namespace AdminClient
 }
 
 ====== END FILE: ./Views/MainWindow.xaml.cs ======
+
+====== BEGIN FILE: ./Views/OperatingUnitCollectionView.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.OperatingUnitCollectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:AdminClient.Views"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <local:BaseCollectionView>
+        <DataGrid ItemsSource="{Binding Items}" 
+                  SelectedItem="{Binding SelectedItem}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" 
+                                  Binding="{Binding Id}" 
+                                  Width="80"/>
+                <DataGridTextColumn Header="Name" 
+                                  Binding="{Binding Name}" 
+                                  Width="*"/>
+                <DataGridTextColumn Header="Program" 
+                                  Binding="{Binding Program.Name}" 
+                                  Width="200"/>
+                <DataGridTemplateColumn Header="Actions" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="View HCPs"
+                                        Command="{Binding DataContext.ViewHcpsCommand, 
+                                            RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                                        Margin="0,0,8,0"/>
+                                <Button Content="View Subjects"
+                                        Command="{Binding DataContext.ViewSubjectsCommand, 
+                                            RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </local:BaseCollectionView>
+</UserControl>
+
+====== END FILE: ./Views/OperatingUnitCollectionView.xaml ======
+
+====== BEGIN FILE: ./Views/OperatingUnitCollectionView.xaml.cs ======
+﻿using System.Windows.Controls;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for OperatingUnitCollectionView.xaml
+    /// </summary>
+    public partial class OperatingUnitCollectionView : UserControl
+    {
+        public OperatingUnitCollectionView()
+        {
+            InitializeComponent();
+
+            this.DataContextChanged += (s, e) =>
+            {
+                if (Content is BaseCollectionView baseView)
+                {
+                    baseView.DataContext = this.DataContext;
+                }
+            };
+        }
+    }
+}
+
+====== END FILE: ./Views/OperatingUnitCollectionView.xaml.cs ======
+
+====== BEGIN FILE: ./Views/OperatingUnitDetailForm.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.OperatingUnitDetailForm"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:AdminClient.Views"
+             xmlns:components="clr-namespace:AdminClient.Views.Components"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <components:DetailFormBase>
+        <components:DetailFormBase.DetailContent>
+            <StackPanel>
+                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Operating Unit Name"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         Margin="0,8"/>
+
+                <TextBox Text="{Binding Program.Name}"
+                         materialDesign:HintAssist.Hint="Program"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         IsEnabled="False"
+                         Margin="0,8"/>
+
+                <TextBox Text="{Binding Program.Organization.Name}"
+                         materialDesign:HintAssist.Hint="Organization"
+                         Style="{StaticResource MaterialDesignFilledTextBox}"
+                         IsEnabled="False"
+                         Margin="0,8"/>
+            </StackPanel>
+        </components:DetailFormBase.DetailContent>
+    </components:DetailFormBase>
+</UserControl>
+
+====== END FILE: ./Views/OperatingUnitDetailForm.xaml ======
+
+====== BEGIN FILE: ./Views/OperatingUnitDetailForm.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for OperatingUnitDetailForm.xaml
+    /// </summary>
+    public partial class OperatingUnitDetailForm : UserControl
+    {
+        public OperatingUnitDetailForm()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+====== END FILE: ./Views/OperatingUnitDetailForm.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/OperatingUnitView.xaml ======
 ﻿<UserControl x:Class="AdminClient.Views.OperatingUnitView"
@@ -2291,6 +3365,86 @@ namespace AdminClient.Views
 }
 
 ====== END FILE: ./Views/OrganizationView.xaml.cs ======
+
+====== BEGIN FILE: ./Views/ProgramCollectionView.xaml ======
+﻿<UserControl x:Class="AdminClient.Views.ProgramCollectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:AdminClient.Views"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+
+    <local:BaseCollectionView>
+        <DataGrid 
+            ItemsSource="{Binding Items}" 
+            SelectedItem="{Binding SelectedItem}"
+            AutoGenerateColumns="False"
+            IsReadOnly="True"
+            materialDesign:DataGridAssist.CellPadding="13 8 8 8"
+            materialDesign:DataGridAssist.ColumnHeaderPadding="8">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" 
+                                  Binding="{Binding Id}" 
+                                  Width="100"/>
+                <DataGridTextColumn Header="Name" 
+                                  Binding="{Binding Name}" 
+                                  Width="*"/>
+                <DataGridTextColumn Header="Organization" 
+                                  Binding="{Binding Organization.Name}" 
+                                  Width="200"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </local:BaseCollectionView>
+</UserControl>
+
+====== END FILE: ./Views/ProgramCollectionView.xaml ======
+
+====== BEGIN FILE: ./Views/ProgramCollectionView.xaml.cs ======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace AdminClient.Views
+{
+    /// <summary>
+    /// Interaction logic for ProgramCollectionView.xaml
+    /// </summary>
+    public partial class ProgramCollectionView : UserControl
+    {
+        public ProgramCollectionView()
+        {
+            InitializeComponent();
+
+            // Since we want the DataContext to flow through to our BaseCollectionView
+            // and its contained DataGrid, we ensure proper binding inheritance
+            this.DataContextChanged += (s, e) =>
+            {
+                // When our DataContext changes, we need to ensure the BaseCollectionView
+                // and its children receive the updated context
+                if (Content is BaseCollectionView baseView)
+                {
+                    baseView.DataContext = this.DataContext;
+                }
+            };
+        }
+    }
+}
+
+====== END FILE: ./Views/ProgramCollectionView.xaml.cs ======
 
 ====== BEGIN FILE: ./Views/ProgramView.xaml ======
 ﻿<UserControl x:Class="AdminClient.Views.ProgramView"

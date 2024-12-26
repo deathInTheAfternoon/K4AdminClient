@@ -13,14 +13,14 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace AdminClient.ViewModels
+namespace AdminClient.Views
 {
     /// <summary>
-    /// Interaction logic for CollectionView.xaml
+    /// Interaction logic for OperatingUnitDetailForm.xaml
     /// </summary>
-    public partial class CollectionView : UserControl
+    public partial class OperatingUnitDetailForm : UserControl
     {
-        public CollectionView()
+        public OperatingUnitDetailForm()
         {
             InitializeComponent();
         }

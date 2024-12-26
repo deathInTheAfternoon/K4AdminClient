@@ -12,6 +12,9 @@ namespace AdminClient.ViewModels
         private string _name;
 
         [ObservableProperty]
+        private TreeNodeViewModel _parent;
+
+        [ObservableProperty]
         private ObservableCollection<TreeNodeViewModel> _children = new();
 
         [ObservableProperty]
@@ -35,6 +38,12 @@ namespace AdminClient.ViewModels
                 or TreeNodeType.BundleDefinitions 
                 or TreeNodeType.ActivityDefinitions;
 
+        }
+
+        public void AddChild(TreeNodeViewModel child)
+        {
+            child.Parent = this;
+            Children.Add(child);
         }
     }
 

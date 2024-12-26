@@ -13,16 +13,24 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace AdminClient.ViewModels
+namespace AdminClient.Views
 {
     /// <summary>
-    /// Interaction logic for LeafView.xaml
+    /// Interaction logic for BundleDefinitionCollectionView.xaml
     /// </summary>
-    public partial class LeafView : UserControl
+    public partial class BundleDefinitionCollectionView : UserControl
     {
-        public LeafView()
+        public BundleDefinitionCollectionView()
         {
             InitializeComponent();
+
+            this.DataContextChanged += (s, e) =>
+            {
+                if (Content is BaseCollectionView baseView)
+                {
+                    baseView.DataContext = this.DataContext;
+                }
+            };
         }
     }
 }

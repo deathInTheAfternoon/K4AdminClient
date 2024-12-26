@@ -36,9 +36,27 @@ namespace AdminClient.ViewModels
         // Reference to the API service that we will pass down to other ViewModels
         private readonly ApiService _apiService;
 
+        // Dictionary to map TreeNodeType to ViewModel type
+        private readonly Dictionary<TreeNodeType, Func<TreeNodeViewModel, object>> _viewModelFactories;
         public MainWindowViewModel(ApiService apiService)
         {
             _apiService = apiService;
+
+            // Initialize the ViewModel factories
+            _viewModelFactories = new Dictionary<TreeNodeType, Func<TreeNodeViewModel, object>>
+            {
+                { TreeNodeType.Root, _ => new CollectionViewModel("Organizations") }, // Placeholder
+                { TreeNodeType.Organization, node => new OrganizationViewModel(_apiService) },
+                { TreeNodeType.Programs, _ => new CollectionViewModel("Programs") }, // Placeholder
+                { TreeNodeType.Program, node => new ProgramViewModel(_apiService, (Organization)node.Parent.ModelObject) { Program = (Models.Program)node.ModelObject } },
+                { TreeNodeType.OperatingUnits, _ => new CollectionViewModel("Operating Units") }, // Placeholder
+                { TreeNodeType.OperatingUnit, node => new OperatingUnitViewModel(_apiService, (OperatingUnit)node.ModelObject) },
+                { TreeNodeType.BundleDefinitions, _ => new CollectionViewModel("Bundle Definitions") }, // Placeholder
+                { TreeNodeType.BundleDefinition, node => new BundleDefinitionViewModel(_apiService, (BundleDefinition)node.ModelObject) },
+                { TreeNodeType.ActivityDefinitions, _ => new CollectionViewModel("Activity Definitions") }, // Placeholder
+                { TreeNodeType.ActivityDefinition, node => new LeafView() } // Placeholder for future ActivityDefinitionViewModel
+            };
+
             var orgViewModel = new OrganizationViewModel(_apiService);
             // Add handler for when an organization is selected
             orgViewModel.OrganizationSelected += OnOrganizationSelected;

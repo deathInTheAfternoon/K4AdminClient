@@ -1,7 +1,11 @@
-﻿using AdminClient.Models;
+﻿using System.Windows.Controls;
+using System.Windows;
+using AdminClient.Models;
 using AdminClient.Services;
 using AdminClient.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using System.Windows.Media;
 
 namespace AdminClient.ViewModels
 {
@@ -10,6 +14,8 @@ namespace AdminClient.ViewModels
         private readonly string _regionId;
         // The selected organization
         public event EventHandler<Organization> OrganizationSelected;
+        // TESt
+        public override bool CanDelete => true;
 
         public OrganizationCollectionViewModel(ApiService apiService, string regionId = "us")
             : base(apiService)
@@ -60,7 +66,7 @@ namespace AdminClient.ViewModels
                 };
 
                 // Show dialog and wait for result
-                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
+                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
             }
             catch (Exception ex)
             {
@@ -70,6 +76,79 @@ namespace AdminClient.ViewModels
             {
                 IsLoading = false;
             }
+        }
+
+        // Override the existing protected DeleteAsync method
+        protected override async Task DeleteAsync()
+        {
+            if (SelectedItem == null) return;
+
+            // Create a proper dialog with buttons
+            var dialogContent = new StackPanel { Margin = new Thickness(16) };
+            dialogContent.Children.Add(new TextBlock
+            {
+                Text = $"Are you sure you want to delete organization '{SelectedItem.Name}'?",
+                Margin = new Thickness(0, 0, 0, 16)
+            });
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "CANCEL",
+                Style = Application.Current.FindResource("MaterialDesignFlatButton") as Style,
+                Command = MaterialDesignThemes.Wpf.DialogHost.CloseDialogCommand,
+                CommandParameter = false,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var deleteButton = new Button
+            {
+                Content = "DELETE",
+                Style = Application.Current.FindResource("MaterialDesignFlatButton") as Style,
+                Command = MaterialDesignThemes.Wpf.DialogHost.CloseDialogCommand,
+                CommandParameter = true,
+                Foreground = Brushes.Red
+            };
+
+            buttonPanel.Children.Add(cancelButton);
+            buttonPanel.Children.Add(deleteButton);
+            dialogContent.Children.Add(buttonPanel);
+
+            var result = await MaterialDesignThemes.Wpf.DialogHost.Show(dialogContent, "RootDialog");
+
+            if (result is not bool confirmed || !confirmed) return;
+
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                await _apiService.DeleteOrganizationAsync(SelectedItem.Id);
+
+                // Remove from collection
+                Items.Remove(SelectedItem);
+                SelectedItem = null;
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error deleting organization: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        [RelayCommand]
+        public async Task ViewDetails(Organization org)
+        {
+            var dialog = new OrganizationDetailsDialog { DataContext = org };
+            await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
         }
     }
 }

@@ -48,11 +48,17 @@ namespace AdminClient.Services
                 ?? throw new Exception("Failed to create organization");
         }
 
-        // Organization Operations
         public async Task<Organization> GetOrganizationAsync(long orgId)
         {
             return await _httpClient.GetFromJsonAsync<Organization>($"/organizations/{orgId}")
                 ?? throw new Exception("Organization not found");
+        }
+
+        // Todo: using hard-coded regionId "us" for now
+        public async Task DeleteOrganizationAsync(long orgId)
+        {
+            var response = await _httpClient.DeleteAsync($"regions/us/organizations/{orgId}");
+            response.EnsureSuccessStatusCode();
         }
 
         public async Task<List<Program>> GetProgramsForOrganizationAsync(long orgId)

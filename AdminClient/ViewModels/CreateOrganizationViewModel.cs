@@ -48,7 +48,10 @@ namespace AdminClient.ViewModels
 
                 var newOrg = new Organization { Name = Name };
                 var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
-                
+
+                // Raise the event BEFORE closing the dialog
+                OrganizationCreated?.Invoke(this, createdOrg);
+                // Now close the dialog (todo: can we remove this? Is anyone listening for this event?)
                 DialogClosed?.Invoke(this, EventArgs.Empty);
                 // Force the dialog to close
                 DialogHost.CloseDialogCommand.Execute(null, null);  

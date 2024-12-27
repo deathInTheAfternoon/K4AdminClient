@@ -42,20 +42,19 @@
                                 <StackPanel Orientation="Horizontal">
                                     <!-- Quick View Button -->
                                     <Button Style="{StaticResource MaterialDesignIconButton}"
-                            ToolTip="View Details"
-                            Command="{Binding DataContext.ViewDetailsCommand, 
-                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                            CommandParameter="{Binding}"
-                            Margin="0,0,8,0">
-                                        <materialDesign:PackIcon Kind="Information"/>
+                                        ToolTip="View Details"
+                                        Command="{Binding DataContext.ViewDetailsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Margin="0,0,8,0">
+                                            <materialDesign:PackIcon Kind="Information"/>
                                     </Button>
                                     <!-- Delete Button -->
                                     <Button Style="{StaticResource MaterialDesignIconButton}"
-                            ToolTip="Delete"
-                            Command="{Binding DataContext.DeleteCommand, 
-                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                            CommandParameter="{Binding}">
-                                        <materialDesign:PackIcon Kind="Delete" Foreground="Red"/>
+                                        ToolTip="Delete"
+                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Margin="0,0,8,0">
+                                            <materialDesign:PackIcon Kind="Delete" Foreground="Red"/>
                                     </Button>
                                 </StackPanel>
                             </DataTemplate>

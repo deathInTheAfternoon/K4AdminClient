@@ -6,6 +6,8 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <ControlTemplate TargetType="UserControl">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -31,6 +33,9 @@
         <StackPanel Grid.Row="1" 
                     Orientation="Horizontal" 
                     Margin="0,0,0,16">
+            <TextBlock Text="{Binding CanAdd, StringFormat='CanAdd: {0}'}" Margin="0,0,10,0"/>
+            <TextBlock Text="Converter Test: " Margin="0,0,10,0"/>
+            <TextBlock Text="Visible" Visibility="{Binding CanAdd, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0"/>
             <Button Content="Add"
                     Command="{Binding AddCommand}"
                     Style="{StaticResource MaterialDesignFlatButton}"
@@ -47,6 +52,7 @@
                     Visibility="{Binding CanDelete, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
 
+        <!--<ContentControl x:Name="MyContentControl" Grid.Row="2" Content="{Binding .}"/>-->
         <!-- Content is provided by derived views -->
         <ContentPresenter Grid.Row="2" 
                          Content="{Binding ViewContent}"/>
@@ -59,4 +65,5 @@
                         IsIndeterminate="True"/>
         </Grid>
     </Grid>
+    </ControlTemplate>
 </UserControl>

@@ -7,14 +7,6 @@ namespace AdminClient.Views
         public OrganizationCollectionView()
         {
             InitializeComponent();
-
-            this.DataContextChanged += (s, e) =>
-            {
-                if (Content is BaseCollectionView baseView)
-                {
-                    baseView.DataContext = this.DataContext;
-                }
-            };
         }
     }
 }

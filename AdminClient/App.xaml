@@ -15,6 +15,7 @@
             <converters:NotNullToBooleanConverter x:Key="NotNullToBooleanConverter"/>
             <converters:NodeTypeToIconConverter x:Key="NodeTypeToIconConverter"/>
             <converters:NodeTypeToColourConverter x:Key="NodeTypeToColourConverter"/>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

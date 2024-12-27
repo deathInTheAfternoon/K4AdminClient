@@ -1,5 +1,6 @@
 ﻿using AdminClient.Models;
 using AdminClient.Services;
+using AdminClient.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AdminClient.ViewModels
@@ -44,8 +45,31 @@ namespace AdminClient.ViewModels
 
         protected override async Task AddAsync()
         {
-            // We'll implement this in the next micro-feature
-            await Task.CompletedTask;
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+
+                // Create and setup dialog
+                var dialogViewModel = new CreateOrganizationViewModel(_apiService, _regionId);
+                var dialog = new CreateOrganizationDialog { DataContext = dialogViewModel };
+
+                dialogViewModel.OrganizationCreated += (s, newOrg) =>
+                {
+                    Items.Add(newOrg);
+                };
+
+                // Show dialog and wait for result
+                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error creating organization: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
     }
 }

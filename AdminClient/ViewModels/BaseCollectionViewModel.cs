@@ -43,5 +43,10 @@ namespace AdminClient.ViewModels
         protected virtual Task DeleteAsync() => Task.CompletedTask;
 
         protected abstract Task LoadDataAsync();
+
+        public async Task InitializeAsync()
+        {
+            await LoadDataAsync();
+        }
     }
 }

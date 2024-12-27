@@ -3,6 +3,7 @@ using AdminClient.Models;
 using AdminClient.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MaterialDesignThemes.Wpf;
 
 namespace AdminClient.ViewModels
 {
@@ -47,9 +48,10 @@ namespace AdminClient.ViewModels
 
                 var newOrg = new Organization { Name = Name };
                 var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
-
-                OrganizationCreated?.Invoke(this, createdOrg);
+                
                 DialogClosed?.Invoke(this, EventArgs.Empty);
+                // Force the dialog to close
+                DialogHost.CloseDialogCommand.Execute(null, null);  
             }
             catch (Exception ex)
             {

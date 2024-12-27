@@ -48,7 +48,7 @@
         </DataTemplate>
     </Window.Resources>
 
-    <materialDesign:DialogHost CloseOnClickAway="True">
+    <materialDesign:DialogHost CloseOnClickAway="False">
         <Grid Background="WhiteSmoke">
             <DockPanel>
                 <!-- Navigation Header -->

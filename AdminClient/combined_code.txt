@@ -193,16 +193,25 @@ namespace AdminClient.Converters
         }
     }
 
+    [ValueConversion(typeof(bool), typeof(Visibility))]
     public class BooleanToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return value is bool boolValue && boolValue ? Visibility.Visible : Visibility.Collapsed;
+            if (value is bool boolValue)
+            {
+                return boolValue ? Visibility.Visible : Visibility.Collapsed;
+            }
+            return Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            throw new NotImplementedException();
+            if (value is Visibility visibility)
+            {
+                return visibility == Visibility.Visible;
+            }
+            return false;
         }
     }
 
@@ -2533,6 +2542,8 @@ namespace AdminClient.ViewModels
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <ControlTemplate TargetType="UserControl">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -2558,6 +2569,9 @@ namespace AdminClient.ViewModels
         <StackPanel Grid.Row="1" 
                     Orientation="Horizontal" 
                     Margin="0,0,0,16">
+            <TextBlock Text="{Binding CanAdd, StringFormat='CanAdd: {0}'}" Margin="0,0,10,0"/>
+            <TextBlock Text="Converter Test: " Margin="0,0,10,0"/>
+            <TextBlock Text="Visible" Visibility="{Binding CanAdd, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0"/>
             <Button Content="Add"
                     Command="{Binding AddCommand}"
                     Style="{StaticResource MaterialDesignFlatButton}"
@@ -2574,6 +2588,7 @@ namespace AdminClient.ViewModels
                     Visibility="{Binding CanDelete, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
 
+        <!--<ContentControl x:Name="MyContentControl" Grid.Row="2" Content="{Binding .}"/>-->
         <!-- Content is provided by derived views -->
         <ContentPresenter Grid.Row="2" 
                          Content="{Binding ViewContent}"/>
@@ -2586,6 +2601,7 @@ namespace AdminClient.ViewModels
                         IsIndeterminate="True"/>
         </Grid>
     </Grid>
+    </ControlTemplate>
 </UserControl>
 
 ====== END FILE: ./Views/BaseCollectionView.xaml ======
@@ -3799,14 +3815,6 @@ namespace AdminClient.Views
         public OrganizationCollectionView()
         {
             InitializeComponent();
-
-            this.DataContextChanged += (s, e) =>
-            {
-                if (Content is BaseCollectionView baseView)
-                {
-                    baseView.DataContext = this.DataContext;
-                }
-            };
         }
     }
 }

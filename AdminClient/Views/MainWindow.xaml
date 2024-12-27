@@ -43,6 +43,9 @@
         <DataTemplate DataType="{x:Type vm:BundleDefinitionCollectionViewModel}">
             <views:BundleDefinitionCollectionView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OrganizationCollectionViewModel}">
+            <views:OrganizationCollectionView />
+        </DataTemplate>
     </Window.Resources>
 
     <materialDesign:DialogHost CloseOnClickAway="True">

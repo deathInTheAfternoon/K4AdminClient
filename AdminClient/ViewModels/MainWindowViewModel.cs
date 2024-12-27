@@ -42,11 +42,10 @@ namespace AdminClient.ViewModels
         {
             _apiService = apiService;
 
-            var orgViewModel = new OrganizationViewModel(_apiService);
-            // Add handler for when an organization is selected
-            orgViewModel.OrganizationSelected += OnOrganizationSelected;
+            var orgViewModel = new OrganizationCollectionViewModel(_apiService);
             CurrentViewModel = orgViewModel;
             CurrentViewTitle = "Organizations";
+
             // load tree view's model from db
             LoadTreeAsync().ConfigureAwait(false);
         }
@@ -212,7 +211,11 @@ namespace AdminClient.ViewModels
                     switch (selectedNode.NodeType)
                     {
                         case TreeNodeType.Root:
-                            NavigateToOrganizations();
+                            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
+                            var orgCollectionViewModel = new OrganizationCollectionViewModel(_apiService);
+                            CurrentViewModel = orgCollectionViewModel;
+                            CurrentViewTitle = orgCollectionViewModel.CollectionTitle;
+                            CanNavigateBack = true;
                             break;
                         case TreeNodeType.Programs:
                             if (selectedNode.Parent?.ModelObject is Organization parentOrg)
@@ -326,28 +329,6 @@ namespace AdminClient.ViewModels
             {
                 MessageBox.Show($"Error handling selection: {ex.Message}");
             }
-        }
-
-        private void NavigateToOrganizations()
-        {
-            if (CurrentViewModel is OrganizationViewModel oldViewModel)
-            {
-                oldViewModel.OrganizationSelected -= OnOrganizationSelected;
-            }
-
-            var orgViewModel = new OrganizationViewModel(_apiService);
-            orgViewModel.OrganizationSelected += OnOrganizationSelected;
-            CurrentViewModel = orgViewModel;
-            CurrentViewTitle = "Organizations";
-        }
-
-        private void NavigateToPrograms(Organization organization)
-        {
-            _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
-            var programViewModel = new ProgramViewModel(_apiService, organization);
-            CurrentViewModel = programViewModel;
-            CurrentViewTitle = $"Programs - {organization.Name}";
-            CanNavigateBack = true;
         }
     }
 }

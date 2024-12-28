@@ -23,6 +23,10 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private bool _isCollectionNode;
 
+        // For helping restore the expanded state of the tree
+        [ObservableProperty]
+        private bool _isExpanded;
+
         // Reference to the actual domain model object
         public object ModelObject { get; }
 

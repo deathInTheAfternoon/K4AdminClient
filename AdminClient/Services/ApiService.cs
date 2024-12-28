@@ -54,6 +54,14 @@ namespace AdminClient.Services
                 ?? throw new Exception("Organization not found");
         }
 
+        public async Task<Organization> UpdateOrganizationAsync(Organization org)
+        {
+            var response = await _httpClient.PutAsJsonAsync($"/regions/us/organizations/{org.Id}", org);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<Organization>()
+                            ?? throw new Exception("Failed to update organization");
+        }
+
         // Todo: using hard-coded regionId "us" for now
         public async Task DeleteOrganizationAsync(long orgId)
         {

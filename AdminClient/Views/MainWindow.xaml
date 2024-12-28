@@ -90,6 +90,7 @@
                                     <!-- Style for TreeViewItem to add proper spacing and hover effects -->
                                     <Style TargetType="TreeViewItem" BasedOn="{StaticResource MaterialDesignTreeViewItem}">
                                         <Setter Property="Padding" Value="8,4"/>
+                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                                         <Setter Property="materialDesign:TreeViewAssist.ExpanderSize" Value="24"/>
                                     </Style>
                                 </TreeView.Resources>
@@ -106,8 +107,8 @@
                                                 Margin="0,0,8,0"/>
                                             <!-- Node name -->
                                             <TextBlock Text="{Binding Name}"
-                              VerticalAlignment="Center"
-                              Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                                  VerticalAlignment="Center"
+                                                  Style="{StaticResource MaterialDesignBody1TextBlock}"/>
                                         </StackPanel>
                                     </HierarchicalDataTemplate>
                                 </TreeView.ItemTemplate>

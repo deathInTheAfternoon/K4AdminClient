@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows.Media;
 using Microsoft.VisualBasic.Devices;
+using MaterialDesignThemes.Wpf;
 
 namespace AdminClient.ViewModels
 {
@@ -14,12 +15,13 @@ namespace AdminClient.ViewModels
     {
         private readonly string _regionId;
         // Event emitters
-        public event EventHandler<Organization> OrganizationSelected;
-        public event EventHandler<Organization> OrganizationCreated;
+        public event EventHandler<Organization> OrganizationsCollectionUpdated;
         public event EventHandler<Organization> OrganizationDeleted;
 
-        // Todo: orginally this enabled the 'Action Bar' delete button. But it's now always enabled in the datagrid. Analyze it's usage.
+        // Todo: orginally these were used to enabled the 'Action Bar' delete button - which now just hosts 'Add'.
+        // Since these buttons are now always enabled in the datagrid - need to analyze usage.
         public override bool CanDelete => true;
+        public override bool CanEdit => true;
 
         public OrganizationCollectionViewModel(ApiService apiService, string regionId = "us")
             : base(apiService)
@@ -64,12 +66,15 @@ namespace AdminClient.ViewModels
                 var dialogViewModel = new CreateOrganizationViewModel(_apiService, _regionId);
                 var dialog = new CreateOrganizationDialog { DataContext = dialogViewModel };
 
-                dialogViewModel.OrganizationCreated += (s, newOrg) =>
+                // Register our event handler lambdas
+                dialogViewModel.OrganizationsCollectionUpdated += (s, newOrg) =>
                 {
                     Items.Add(newOrg);
                     // Raise event to notify listeners
-                    OrganizationCreated?.Invoke(this, newOrg);
+                    OrganizationsCollectionUpdated?.Invoke(this, newOrg);
                 };
+
+                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
 
                 // Show dialog and wait for result
                 await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
@@ -77,6 +82,45 @@ namespace AdminClient.ViewModels
             catch (Exception ex)
             {
                 ErrorMessage = $"Error creating organization: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        // Edit-command handler
+        protected override async Task EditAsync()
+        {
+            if (SelectedItem == null) return;
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+                // Setup dialog with lambda event handler
+                var dialogViewModel = new EditOrganizationViewModel(_apiService, SelectedItem);
+                var dialog = new EditOrganizationDialog { DataContext = dialogViewModel };
+                
+                // Register our event handler lambdas
+                dialogViewModel.OrganizationUpdated += (s, updatedOrg) =>
+                {
+                    // Update the item in the collection
+                    var index = Items.IndexOf(SelectedItem);
+                    if (index != -1)
+                    {
+                        Items[index] = updatedOrg;
+                        OrganizationsCollectionUpdated?.Invoke(this, null);
+                    }
+                };
+
+                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
+
+                // Show dialog and wait for result
+                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error updating organization: {ex.Message}";
             }
             finally
             {

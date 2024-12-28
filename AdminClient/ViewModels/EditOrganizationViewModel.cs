@@ -2,6 +2,7 @@
 using AdminClient.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MaterialDesignThemes.Wpf;
 using System;
 using System.Threading.Tasks;
 
@@ -18,6 +19,7 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private string _name;
 
+        // Client will subscribe their event handlers to these events
         public event EventHandler<Organization> OrganizationUpdated;
         public event EventHandler DialogClosed;
 
@@ -44,11 +46,11 @@ namespace AdminClient.ViewModels
                     Name = Name
                 };
 
-                // TODO: Add API endpoint for updating organization
-                //await _apiService.UpdateOrganizationAsync(updatedOrg);
+                await _apiService.UpdateOrganizationAsync(updatedOrg);
 
                 // Notify subscribers that update was successful
                 OrganizationUpdated?.Invoke(this, updatedOrg);
+                // Notify subscribers that dialog should be closed.
                 DialogClosed?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)

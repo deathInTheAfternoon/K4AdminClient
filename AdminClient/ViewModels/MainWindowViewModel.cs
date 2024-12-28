@@ -38,13 +38,14 @@ namespace AdminClient.ViewModels
 
         // Dictionary to map TreeNodeType to ViewModel type
         private readonly Dictionary<TreeNodeType, Func<TreeNodeViewModel, object>> _viewModelFactories;
+
         public MainWindowViewModel(ApiService apiService)
         {
             _apiService = apiService;
 
             var orgViewModel = new OrganizationCollectionViewModel(_apiService);
-            // Listen for OrganizationCreated events (from OrganizationCollectionViewModel)
-            orgViewModel.OrganizationCreated += OnOrganizationCreated;
+            // Listen for events (from OrganizationCollectionViewModel)
+            orgViewModel.OrganizationsCollectionUpdated += async (s, e) => await LoadTreeAsync();
             orgViewModel.OrganizationDeleted += OnOrganizationDeleted;
 
             CurrentViewModel = orgViewModel;
@@ -91,22 +92,6 @@ namespace AdminClient.ViewModels
             CurrentViewModel = programViewModel;
             CurrentViewTitle = $"Programs - {org.Name}";
             CanNavigateBack = true;
-        }
-
-        // Add method to handle organization creation
-        private void OnOrganizationCreated(object sender, Organization org)
-        {
-            // Find root node (Organizations)
-            var rootNode = TreeNodes.FirstOrDefault();
-            if (rootNode != null)
-            {
-                var orgNode = new TreeNodeViewModel(org.Name, TreeNodeType.Organization, org);
-                rootNode.AddChild(orgNode);
-
-                // Add default child nodes
-                var programsNode = new TreeNodeViewModel("Programs", TreeNodeType.Programs);
-                orgNode.AddChild(programsNode);
-            }
         }
 
         // Handler for organization deletion
@@ -158,14 +143,12 @@ namespace AdminClient.ViewModels
                 // Clean up current view model if needed
                 if (CurrentViewModel is OrganizationCollectionViewModel currentOrgViewModel)
                 {
-                    currentOrgViewModel.OrganizationCreated -= OnOrganizationCreated;
                     currentOrgViewModel.OrganizationDeleted -= OnOrganizationDeleted;
                 }
 
                 // Wire up events for the view model we're navigating back to
                 if (viewModel is OrganizationCollectionViewModel newOrgViewModel)
                 {
-                    newOrgViewModel.OrganizationCreated += OnOrganizationCreated;
                     newOrgViewModel.OrganizationDeleted += OnOrganizationDeleted;
                 }
 
@@ -191,7 +174,6 @@ namespace AdminClient.ViewModels
                 }
                 if (CurrentViewModel is OrganizationCollectionViewModel collectionViewModel)
                 {
-                    collectionViewModel.OrganizationCreated -= OnOrganizationCreated;
                     collectionViewModel.OrganizationDeleted -= OnOrganizationDeleted;
                 }
                 _disposed = true;

@@ -117,9 +117,7 @@ namespace AdminClient.ViewModels
             };
 
             // Show dialog
-            //var dialogHost = MaterialDesignThemes.Wpf.DialogHost.GetDialogHost("RootDialog");
             var dialogHost = MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
-//            await dialogHost.(dialog);
         }
     }
 }

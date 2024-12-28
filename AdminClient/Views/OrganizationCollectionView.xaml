@@ -50,10 +50,12 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
+                    
                     <DataGridTextColumn Header="Name" 
                         Binding="{Binding Name}" 
                         Width="*"
-                        MinWidth="200">
+                        MinWidth="200"
+                        SortDirection="Ascending">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="VerticalAlignment" Value="Center"/>
@@ -61,10 +63,19 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
+                    
                     <DataGridTemplateColumn Width="Auto" MinWidth="120">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
+                                    <!-- Edit Button -->
+                                    <Button Style="{StaticResource MaterialDesignIconButton}"
+                                        ToolTip="Edit"
+                                        Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Margin="0,0,8,0">           
+                                        <materialDesign:PackIcon Kind="Edit"/>
+                                    </Button>
                                     <!-- Quick View Button -->
                                     <Button Style="{StaticResource MaterialDesignIconButton}"
                                         ToolTip="View Details"

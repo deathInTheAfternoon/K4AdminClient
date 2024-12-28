@@ -18,7 +18,8 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private string _name;
 
-        public event EventHandler<Organization> OrganizationCreated;
+        // Event emitters
+        public event EventHandler<Organization> OrganizationsCollectionUpdated;
         public event EventHandler DialogClosed;
 
         public CreateOrganizationViewModel(ApiService apiService, string regionId = "us")
@@ -49,12 +50,9 @@ namespace AdminClient.ViewModels
                 var newOrg = new Organization { Name = Name };
                 var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
 
-                // Raise the event BEFORE closing the dialog
-                OrganizationCreated?.Invoke(this, createdOrg);
-                // Now close the dialog (todo: can we remove this? Is anyone listening for this event?)
+                // Invoke client handlers
+                OrganizationsCollectionUpdated?.Invoke(this, createdOrg);
                 DialogClosed?.Invoke(this, EventArgs.Empty);
-                // Force the dialog to close
-                DialogHost.CloseDialogCommand.Execute(null, null);  
             }
             catch (Exception ex)
             {

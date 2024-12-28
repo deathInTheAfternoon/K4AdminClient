@@ -580,6 +580,14 @@ namespace AdminClient.Services
                 ?? throw new Exception("Organization not found");
         }
 
+        public async Task<Organization> UpdateOrganizationAsync(Organization org)
+        {
+            var response = await _httpClient.PutAsJsonAsync($"/regions/us/organizations/{org.Id}", org);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<Organization>()
+                            ?? throw new Exception("Failed to update organization");
+        }
+
         // Todo: using hard-coded regionId "us" for now
         public async Task DeleteOrganizationAsync(long orgId)
         {
@@ -1003,7 +1011,8 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private string _name;
 
-        public event EventHandler<Organization> OrganizationCreated;
+        // Event emitters
+        public event EventHandler<Organization> OrganizationsCollectionUpdated;
         public event EventHandler DialogClosed;
 
         public CreateOrganizationViewModel(ApiService apiService, string regionId = "us")
@@ -1034,12 +1043,9 @@ namespace AdminClient.ViewModels
                 var newOrg = new Organization { Name = Name };
                 var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
 
-                // Raise the event BEFORE closing the dialog
-                OrganizationCreated?.Invoke(this, createdOrg);
-                // Now close the dialog (todo: can we remove this? Is anyone listening for this event?)
+                // Invoke client handlers
+                OrganizationsCollectionUpdated?.Invoke(this, createdOrg);
                 DialogClosed?.Invoke(this, EventArgs.Empty);
-                // Force the dialog to close
-                DialogHost.CloseDialogCommand.Execute(null, null);  
             }
             catch (Exception ex)
             {
@@ -1059,6 +1065,7 @@ namespace AdminClient.ViewModels
 using AdminClient.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MaterialDesignThemes.Wpf;
 using System;
 using System.Threading.Tasks;
 
@@ -1075,6 +1082,7 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private string _name;
 
+        // Client will subscribe their event handlers to these events
         public event EventHandler<Organization> OrganizationUpdated;
         public event EventHandler DialogClosed;
 
@@ -1101,11 +1109,11 @@ namespace AdminClient.ViewModels
                     Name = Name
                 };
 
-                // TODO: Add API endpoint for updating organization
-                //await _apiService.UpdateOrganizationAsync(updatedOrg);
+                await _apiService.UpdateOrganizationAsync(updatedOrg);
 
                 // Notify subscribers that update was successful
                 OrganizationUpdated?.Invoke(this, updatedOrg);
+                // Notify subscribers that dialog should be closed.
                 DialogClosed?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)
@@ -1268,6 +1276,10 @@ namespace AdminClient.ViewModels
             _apiService = apiService;
 
             var orgViewModel = new OrganizationCollectionViewModel(_apiService);
+            // Listen for events (from OrganizationCollectionViewModel)
+            orgViewModel.OrganizationsCollectionUpdated += async (s, e) => await LoadTreeAsync();
+            orgViewModel.OrganizationDeleted += OnOrganizationDeleted;
+
             CurrentViewModel = orgViewModel;
             CurrentViewTitle = "Organizations";
 
@@ -1314,6 +1326,41 @@ namespace AdminClient.ViewModels
             CanNavigateBack = true;
         }
 
+        // Handler for organization deletion
+        private void OnOrganizationDeleted(object sender, Organization org)
+        {
+            var rootNode = TreeNodes.FirstOrDefault();
+            if (rootNode != null)
+            {
+                // Debug: Log what we're looking for
+                System.Diagnostics.Debug.WriteLine($"Looking to delete org with ID: {org.Id}");
+
+                foreach (var node in rootNode.Children)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Checking node: {node.Name}, ModelObject: {node.ModelObject?.GetType().Name ?? "null"}");
+                }
+
+                var orgNode = rootNode.Children.FirstOrDefault(n =>
+                    n.ModelObject != null &&
+                    n.ModelObject is Organization orgModel &&
+                    orgModel.Id == org.Id);
+
+                if (orgNode != null)
+                {
+                    rootNode.Children.Remove(orgNode);
+                    System.Diagnostics.Debug.WriteLine("Node removed successfully");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("Could not find matching node to remove");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("Root node not found");
+            }
+        }
+
         [RelayCommand]
         private void NavigateBack()
         {
@@ -1324,6 +1371,17 @@ namespace AdminClient.ViewModels
                 if (viewModel is OrganizationViewModel newViewModel)
                 {
                     newViewModel.OrganizationSelected += OnOrganizationSelected;
+                }
+                // Clean up current view model if needed
+                if (CurrentViewModel is OrganizationCollectionViewModel currentOrgViewModel)
+                {
+                    currentOrgViewModel.OrganizationDeleted -= OnOrganizationDeleted;
+                }
+
+                // Wire up events for the view model we're navigating back to
+                if (viewModel is OrganizationCollectionViewModel newOrgViewModel)
+                {
+                    newOrgViewModel.OrganizationDeleted += OnOrganizationDeleted;
                 }
 
                 CurrentViewModel = viewModel;
@@ -1345,6 +1403,10 @@ namespace AdminClient.ViewModels
                 if (disposing && CurrentViewModel is OrganizationViewModel viewModel)
                 {
                     viewModel.OrganizationSelected -= OnOrganizationSelected;
+                }
+                if (CurrentViewModel is OrganizationCollectionViewModel collectionViewModel)
+                {
+                    collectionViewModel.OrganizationDeleted -= OnOrganizationDeleted;
                 }
                 _disposed = true;
             }
@@ -1872,16 +1934,22 @@ using AdminClient.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows.Media;
+using Microsoft.VisualBasic.Devices;
+using MaterialDesignThemes.Wpf;
 
 namespace AdminClient.ViewModels
 {
     public partial class OrganizationCollectionViewModel : BaseCollectionViewModel<Organization>
     {
         private readonly string _regionId;
-        // The selected organization
-        public event EventHandler<Organization> OrganizationSelected;
-        // TESt
+        // Event emitters
+        public event EventHandler<Organization> OrganizationsCollectionUpdated;
+        public event EventHandler<Organization> OrganizationDeleted;
+
+        // Todo: orginally these were used to enabled the 'Action Bar' delete button - which now just hosts 'Add'.
+        // Since these buttons are now always enabled in the datagrid - need to analyze usage.
         public override bool CanDelete => true;
+        public override bool CanEdit => true;
 
         public OrganizationCollectionViewModel(ApiService apiService, string regionId = "us")
             : base(apiService)
@@ -1926,10 +1994,15 @@ namespace AdminClient.ViewModels
                 var dialogViewModel = new CreateOrganizationViewModel(_apiService, _regionId);
                 var dialog = new CreateOrganizationDialog { DataContext = dialogViewModel };
 
-                dialogViewModel.OrganizationCreated += (s, newOrg) =>
+                // Register our event handler lambdas
+                dialogViewModel.OrganizationsCollectionUpdated += (s, newOrg) =>
                 {
                     Items.Add(newOrg);
+                    // Raise event to notify listeners
+                    OrganizationsCollectionUpdated?.Invoke(this, newOrg);
                 };
+
+                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
 
                 // Show dialog and wait for result
                 await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
@@ -1944,11 +2017,55 @@ namespace AdminClient.ViewModels
             }
         }
 
+        // Edit-command handler
+        protected override async Task EditAsync()
+        {
+            if (SelectedItem == null) return;
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = null;
+                // Setup dialog with lambda event handler
+                var dialogViewModel = new EditOrganizationViewModel(_apiService, SelectedItem);
+                var dialog = new EditOrganizationDialog { DataContext = dialogViewModel };
+                
+                // Register our event handler lambdas
+                dialogViewModel.OrganizationUpdated += (s, updatedOrg) =>
+                {
+                    // Update the item in the collection
+                    var index = Items.IndexOf(SelectedItem);
+                    if (index != -1)
+                    {
+                        Items[index] = updatedOrg;
+                        OrganizationsCollectionUpdated?.Invoke(this, null);
+                    }
+                };
+
+                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
+
+                // Show dialog and wait for result
+                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error updating organization: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
         // Override the existing protected DeleteAsync method
         protected override async Task DeleteAsync()
         {
             if (SelectedItem == null) return;
 
+            // IMPORTANT: Store a reference to item which will not be nulled and can be safely referenced by the OrganizationDeleted event.
+            // SelecteItem will be nulled after the dialog is closed.
+            var itemToDelete = SelectedItem;
+
+            #region Dialog Box Implementation
             // Create a proper dialog with buttons
             var dialogContent = new StackPanel { Margin = new Thickness(16) };
             dialogContent.Children.Add(new TextBlock
@@ -1989,15 +2106,20 @@ namespace AdminClient.ViewModels
 
             if (result is not bool confirmed || !confirmed) return;
 
+            #endregion
+
             try
             {
                 IsLoading = true;
                 ErrorMessage = null;
 
-                await _apiService.DeleteOrganizationAsync(SelectedItem.Id);
+                await _apiService.DeleteOrganizationAsync(itemToDelete.Id);
 
                 // Remove from collection
-                Items.Remove(SelectedItem);
+                Items.Remove(itemToDelete);
+                // Raise event to notify listeners
+                OrganizationDeleted?.Invoke(this, itemToDelete);
+                // As mentioned, this is why we mustn't pass SelectedItem directly to the event...else handler would receive a null value.
                 SelectedItem = null;
             }
             catch (Exception ex)
@@ -2146,6 +2268,7 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private Organization _selectedOrganization;
 
+        // Emitted Events
         public event EventHandler<Organization> OrganizationSelected;
 
         public OrganizationViewModel(ApiService apiService)
@@ -2235,9 +2358,7 @@ namespace AdminClient.ViewModels
             };
 
             // Show dialog
-            //var dialogHost = MaterialDesignThemes.Wpf.DialogHost.GetDialogHost("RootDialog");
             var dialogHost = MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
-//            await dialogHost.(dialog);
         }
     }
 }
@@ -2654,24 +2775,17 @@ namespace AdminClient.ViewModels
                    FontWeight="Bold"
                    Margin="0,0,0,10" />
 
-        <!-- Action Bar -->
+        <!-- Add to Grid, button -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
             <Button Command="{Binding AddCommand}"
                 Style="{StaticResource MaterialDesignIconForegroundButton}"
                 ToolTip="Add New"
                 Visibility="{Binding CanAdd, 
-                Converter={StaticResource BooleanToVisibilityConverter}}">  
+                Converter={StaticResource BooleanToVisibilityConverter}}">
                 <materialDesign:PackIcon Kind="Plus" 
                             Width="24" 
                             Height="24"/>
             </Button>
-            <Button Content="Edit"
-                    Command="{Binding EditCommand, 
-                        RelativeSource={RelativeSource AncestorType=UserControl}}"
-                    Margin="8,0,0,0"
-                    Visibility="{Binding CanEdit, 
-                        RelativeSource={RelativeSource AncestorType=UserControl},
-                        Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
 
         <!-- 
@@ -3698,9 +3812,14 @@ namespace AdminClient.Views
                                                 Margin="0,0,8,0"/>
                                             <!-- Node name -->
                                             <TextBlock Text="{Binding Name}"
-                              VerticalAlignment="Center"
-                              Style="{StaticResource MaterialDesignBody1TextBlock}"/>
+                                                  VerticalAlignment="Center"
+                                                  Style="{StaticResource MaterialDesignBody1TextBlock}"/>   
                                         </StackPanel>
+                                        <HierarchicalDataTemplate.ItemContainerStyle>
+                                            <Style TargetType="{x:Type TreeViewItem}">
+                                                <Setter Property="IsExpanded" Value="True" />
+                                            </Style>
+                                        </HierarchicalDataTemplate.ItemContainerStyle>
                                     </HierarchicalDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
@@ -4088,6 +4207,14 @@ namespace AdminClient.Views
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
+                                    <!-- Edit Button -->
+                                    <Button Style="{StaticResource MaterialDesignIconButton}"
+                                        ToolTip="Edit"
+                                        Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Margin="0,0,8,0">           
+                                        <materialDesign:PackIcon Kind="Edit"/>
+                                    </Button>
                                     <!-- Quick View Button -->
                                     <Button Style="{StaticResource MaterialDesignIconButton}"
                                         ToolTip="View Details"

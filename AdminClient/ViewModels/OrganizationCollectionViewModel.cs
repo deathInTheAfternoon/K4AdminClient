@@ -1,12 +1,10 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using AdminClient.Models;
 using AdminClient.Services;
 using AdminClient.Views;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System.Windows.Media;
-using Microsoft.VisualBasic.Devices;
 using MaterialDesignThemes.Wpf;
 
 namespace AdminClient.ViewModels

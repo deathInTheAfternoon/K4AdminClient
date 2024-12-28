@@ -82,6 +82,11 @@ namespace AdminClient.Services
             return await response.Content.ReadFromJsonAsync<Program>()
                 ?? throw new Exception("Failed to create program");
         }
+        public async Task DeleteProgramAsync(long orgId, Program program)
+        {
+            var response = await _httpClient.DeleteAsync($"regions/us/organizations/{orgId}/programs/{program.Id}");
+            response.EnsureSuccessStatusCode();
+        }
 
         // Program Operations
         public async Task<Program> GetProgramAsync(long programId)

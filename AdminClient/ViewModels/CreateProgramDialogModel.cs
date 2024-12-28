@@ -1,15 +1,14 @@
-﻿// ADD NEW FILE: ViewModels/CreateOrganizationViewModel.cs
-using AdminClient.Models;
+﻿using AdminClient.Models;
 using AdminClient.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace AdminClient.ViewModels
 {
-    public partial class CreateOrganizationViewModel : ObservableObject
+    public partial class CreateProgramDialogModel : ObservableObject
     {
         private readonly ApiService _apiService;
-        private readonly string _regionId;
+        private readonly Organization _organization;
 
         [ObservableProperty]
         private bool _isLoading;
@@ -18,13 +17,13 @@ namespace AdminClient.ViewModels
         private string _name;
 
         // Event emitters
-        public event EventHandler<Organization> OrganizationsCollectionUpdated;
+        public event EventHandler<Program> ProgramsCollectionUpdated;
         public event EventHandler DialogClosed;
 
-        public CreateOrganizationViewModel(ApiService apiService, string regionId = "us")
+        public CreateProgramDialogModel(ApiService apiService, Organization organization)
         {
             _apiService = apiService;
-            _regionId = regionId;
+            _organization = organization;
         }
 
         [RelayCommand]
@@ -38,7 +37,7 @@ namespace AdminClient.ViewModels
         {
             if (string.IsNullOrWhiteSpace(Name))
             {
-                System.Windows.MessageBox.Show("Organization name cannot be empty");
+                System.Windows.MessageBox.Show("Program name cannot be empty");
                 return;
             }
 
@@ -46,11 +45,11 @@ namespace AdminClient.ViewModels
             {
                 IsLoading = true;
 
-                var newOrg = new Organization { Name = Name };
-                var createdOrg = await _apiService.CreateOrganizationAsync(_regionId, newOrg);
+                var newOrg = new Program { Name = Name };
+                var createdOrg = await _apiService.CreateProgramAsync(_organization.Id, newOrg);
 
                 // Invoke client handlers
-                OrganizationsCollectionUpdated?.Invoke(this, createdOrg);
+                ProgramsCollectionUpdated?.Invoke(this, createdOrg);
                 DialogClosed?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)

@@ -28,24 +28,17 @@
                    FontWeight="Bold"
                    Margin="0,0,0,10" />
 
-        <!-- Action Bar -->
+        <!-- Add to Grid, button -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
             <Button Command="{Binding AddCommand}"
                 Style="{StaticResource MaterialDesignIconForegroundButton}"
                 ToolTip="Add New"
                 Visibility="{Binding CanAdd, 
-                Converter={StaticResource BooleanToVisibilityConverter}}">  
+                Converter={StaticResource BooleanToVisibilityConverter}}">
                 <materialDesign:PackIcon Kind="Plus" 
                             Width="24" 
                             Height="24"/>
             </Button>
-            <Button Content="Edit"
-                    Command="{Binding EditCommand, 
-                        RelativeSource={RelativeSource AncestorType=UserControl}}"
-                    Margin="8,0,0,0"
-                    Visibility="{Binding CanEdit, 
-                        RelativeSource={RelativeSource AncestorType=UserControl},
-                        Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
 
         <!-- 

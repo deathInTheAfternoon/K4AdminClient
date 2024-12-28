@@ -27,6 +27,7 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private Organization _selectedOrganization;
 
+        // Emitted Events
         public event EventHandler<Organization> OrganizationSelected;
 
         public OrganizationViewModel(ApiService apiService)

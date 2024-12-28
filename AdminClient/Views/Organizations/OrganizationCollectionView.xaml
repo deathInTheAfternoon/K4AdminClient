@@ -22,7 +22,6 @@
         -->
         <local:BaseCollectionView.CollectionContent>
             <syncfusion:SfDataGrid
-                HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
                 AllowFiltering="True"
                 AllowResizingColumns="True"
@@ -34,6 +33,23 @@
                 RowHeight="50"
                 SelectedItem="{Binding SelectedItem}"
                 SizeChanged="OrganizationsGrid_SizeChanged">
+
+                <syncfusion:SfDataGrid.Resources>
+                    <Style TargetType="syncfusion:GridHeaderCellControl">
+                        <Setter Property="Background" Value="{DynamicResource MaterialDesignPaper}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}" />
+                        <Setter Property="Padding" Value="16,0" />
+                        <Setter Property="FontSize" Value="13" />
+                        <Setter Property="FontWeight" Value="Medium" />
+                    </Style>
+                    <Style TargetType="syncfusion:GridCell">
+                        <Setter Property="Background" Value="{DynamicResource MaterialDesignPaper}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}" />
+                        <Setter Property="Padding" Value="16,0" />
+                        <Setter Property="FontSize" Value="13" />
+                    </Style>
+                </syncfusion:SfDataGrid.Resources>
+
                 <syncfusion:SfDataGrid.Columns>
                     <syncfusion:GridTextColumn
                         Width="80"
@@ -41,14 +57,14 @@
                         MappingName="Id"
                         MinimumWidth="80" />
                     <syncfusion:GridTextColumn
-                        Width="400"
+                        Width="200"
                         HeaderText="Name"
                         MappingName="Name"
                         MinimumWidth="200" />
                     <syncfusion:GridTemplateColumn
-                        Width="200"
+                        Width="300"
                         HeaderText="Actions"
-                        MinimumWidth="200">
+                        MinimumWidth="300">
                         <syncfusion:GridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
@@ -56,20 +72,25 @@
                                         Margin="0,0,8,0"
                                         Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=syncfusion:SfDataGrid}}"
                                         CommandParameter="{Binding}"
-                                        Content="Edit"
-                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
-                                    <Button
-                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=syncfusion:SfDataGrid}}"
-                                        CommandParameter="{Binding}"
-                                        Content="Delete"
-                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
+                                        Style="{StaticResource MaterialDesignIconButton}"
+                                        ToolTip="Edit">
+                                        <materialDesign:PackIcon Kind="Edit" />
+                                    </Button>
                                     <Button
                                         Margin="0,0,8,0"
-                                        Command="{Binding DataContext.ViewDetailsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        Command="{Binding DataContext.ViewDetailsCommand, RelativeSource={RelativeSource AncestorType=syncfusion:SfDataGrid}}"
                                         CommandParameter="{Binding}"
                                         Style="{StaticResource MaterialDesignIconButton}"
                                         ToolTip="View Details">
                                         <materialDesign:PackIcon Kind="Information" />
+                                    </Button>
+                                    <Button
+                                        Margin="0,0,8,0"
+                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=syncfusion:SfDataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource MaterialDesignIconButton}"
+                                        ToolTip="Delete">
+                                        <materialDesign:PackIcon Foreground="Red" Kind="Delete" />
                                     </Button>
                                 </StackPanel>
                             </DataTemplate>

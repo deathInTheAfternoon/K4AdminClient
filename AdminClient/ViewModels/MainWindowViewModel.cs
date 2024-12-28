@@ -43,6 +43,10 @@ namespace AdminClient.ViewModels
             _apiService = apiService;
 
             var orgViewModel = new OrganizationCollectionViewModel(_apiService);
+            // Listen for OrganizationCreated events (from OrganizationCollectionViewModel)
+            orgViewModel.OrganizationCreated += OnOrganizationCreated;
+            orgViewModel.OrganizationDeleted += OnOrganizationDeleted;
+
             CurrentViewModel = orgViewModel;
             CurrentViewTitle = "Organizations";
 
@@ -89,6 +93,57 @@ namespace AdminClient.ViewModels
             CanNavigateBack = true;
         }
 
+        // Add method to handle organization creation
+        private void OnOrganizationCreated(object sender, Organization org)
+        {
+            // Find root node (Organizations)
+            var rootNode = TreeNodes.FirstOrDefault();
+            if (rootNode != null)
+            {
+                var orgNode = new TreeNodeViewModel(org.Name, TreeNodeType.Organization, org);
+                rootNode.AddChild(orgNode);
+
+                // Add default child nodes
+                var programsNode = new TreeNodeViewModel("Programs", TreeNodeType.Programs);
+                orgNode.AddChild(programsNode);
+            }
+        }
+
+        // Handler for organization deletion
+        private void OnOrganizationDeleted(object sender, Organization org)
+        {
+            var rootNode = TreeNodes.FirstOrDefault();
+            if (rootNode != null)
+            {
+                // Debug: Log what we're looking for
+                System.Diagnostics.Debug.WriteLine($"Looking to delete org with ID: {org.Id}");
+
+                foreach (var node in rootNode.Children)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Checking node: {node.Name}, ModelObject: {node.ModelObject?.GetType().Name ?? "null"}");
+                }
+
+                var orgNode = rootNode.Children.FirstOrDefault(n =>
+                    n.ModelObject != null &&
+                    n.ModelObject is Organization orgModel &&
+                    orgModel.Id == org.Id);
+
+                if (orgNode != null)
+                {
+                    rootNode.Children.Remove(orgNode);
+                    System.Diagnostics.Debug.WriteLine("Node removed successfully");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("Could not find matching node to remove");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("Root node not found");
+            }
+        }
+
         [RelayCommand]
         private void NavigateBack()
         {
@@ -99,6 +154,19 @@ namespace AdminClient.ViewModels
                 if (viewModel is OrganizationViewModel newViewModel)
                 {
                     newViewModel.OrganizationSelected += OnOrganizationSelected;
+                }
+                // Clean up current view model if needed
+                if (CurrentViewModel is OrganizationCollectionViewModel currentOrgViewModel)
+                {
+                    currentOrgViewModel.OrganizationCreated -= OnOrganizationCreated;
+                    currentOrgViewModel.OrganizationDeleted -= OnOrganizationDeleted;
+                }
+
+                // Wire up events for the view model we're navigating back to
+                if (viewModel is OrganizationCollectionViewModel newOrgViewModel)
+                {
+                    newOrgViewModel.OrganizationCreated += OnOrganizationCreated;
+                    newOrgViewModel.OrganizationDeleted += OnOrganizationDeleted;
                 }
 
                 CurrentViewModel = viewModel;
@@ -120,6 +188,11 @@ namespace AdminClient.ViewModels
                 if (disposing && CurrentViewModel is OrganizationViewModel viewModel)
                 {
                     viewModel.OrganizationSelected -= OnOrganizationSelected;
+                }
+                if (CurrentViewModel is OrganizationCollectionViewModel collectionViewModel)
+                {
+                    collectionViewModel.OrganizationCreated -= OnOrganizationCreated;
+                    collectionViewModel.OrganizationDeleted -= OnOrganizationDeleted;
                 }
                 _disposed = true;
             }

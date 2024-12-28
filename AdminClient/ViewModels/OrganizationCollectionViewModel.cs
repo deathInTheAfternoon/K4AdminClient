@@ -6,15 +6,19 @@ using AdminClient.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows.Media;
+using Microsoft.VisualBasic.Devices;
 
 namespace AdminClient.ViewModels
 {
     public partial class OrganizationCollectionViewModel : BaseCollectionViewModel<Organization>
     {
         private readonly string _regionId;
-        // The selected organization
+        // Event emitters
         public event EventHandler<Organization> OrganizationSelected;
-        // TESt
+        public event EventHandler<Organization> OrganizationCreated;
+        public event EventHandler<Organization> OrganizationDeleted;
+
+        // Todo: orginally this enabled the 'Action Bar' delete button. But it's now always enabled in the datagrid. Analyze it's usage.
         public override bool CanDelete => true;
 
         public OrganizationCollectionViewModel(ApiService apiService, string regionId = "us")
@@ -63,6 +67,8 @@ namespace AdminClient.ViewModels
                 dialogViewModel.OrganizationCreated += (s, newOrg) =>
                 {
                     Items.Add(newOrg);
+                    // Raise event to notify listeners
+                    OrganizationCreated?.Invoke(this, newOrg);
                 };
 
                 // Show dialog and wait for result
@@ -83,6 +89,11 @@ namespace AdminClient.ViewModels
         {
             if (SelectedItem == null) return;
 
+            // IMPORTANT: Store a reference to item which will not be nulled and can be safely referenced by the OrganizationDeleted event.
+            // SelecteItem will be nulled after the dialog is closed.
+            var itemToDelete = SelectedItem;
+
+            #region Dialog Box Implementation
             // Create a proper dialog with buttons
             var dialogContent = new StackPanel { Margin = new Thickness(16) };
             dialogContent.Children.Add(new TextBlock
@@ -123,15 +134,20 @@ namespace AdminClient.ViewModels
 
             if (result is not bool confirmed || !confirmed) return;
 
+            #endregion
+
             try
             {
                 IsLoading = true;
                 ErrorMessage = null;
 
-                await _apiService.DeleteOrganizationAsync(SelectedItem.Id);
+                await _apiService.DeleteOrganizationAsync(itemToDelete.Id);
 
                 // Remove from collection
-                Items.Remove(SelectedItem);
+                Items.Remove(itemToDelete);
+                // Raise event to notify listeners
+                OrganizationDeleted?.Invoke(this, itemToDelete);
+                // As mentioned, this is why we mustn't pass SelectedItem directly to the event...else handler would receive a null value.
                 SelectedItem = null;
             }
             catch (Exception ex)

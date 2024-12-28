@@ -51,8 +51,7 @@ namespace AdminClient.ViewModels
                     Organization = _originalProgram.Organization
                 };
 
-                // TODO: Add API endpoint for updating program
-                //await _apiService.UpdateProgramAsync(updatedProgram);
+                await _apiService.UpdateProgramAsync(updatedProgram);
 
                 ProgramUpdated?.Invoke(this, updatedProgram);
                 DialogClosed?.Invoke(this, EventArgs.Empty);

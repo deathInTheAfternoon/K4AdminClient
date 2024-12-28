@@ -40,6 +40,8 @@ namespace AdminClient.ViewModels
                 Items.Clear();
                 foreach (var program in programs)
                 {
+                    // Set the parent organization
+                    program.Organization = _organization;
                     Items.Add(program);
                 }
             }
@@ -65,11 +67,12 @@ namespace AdminClient.ViewModels
                 var dialog = new CreateProgramDialog { DataContext = dialogViewModel };
 
                 // Register our event handler lambdas
-                dialogViewModel.ProgramsCollectionUpdated += (s, newOrg) =>
+                dialogViewModel.ProgramsCollectionUpdated += (s, newProg) =>
                 {
-                    Items.Add(newOrg);
+                    newProg.Organization = _organization;
+                    Items.Add(newProg);
                     // Raise event to notify listeners
-                    ProgramsCollectionUpdated?.Invoke(this, newOrg);
+                    ProgramsCollectionUpdated?.Invoke(this, newProg);
                 };
 
                 dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
@@ -79,7 +82,7 @@ namespace AdminClient.ViewModels
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error creating organization: {ex.Message}";
+                ErrorMessage = $"Error creating program: {ex.Message}";
             }
             finally
             {
@@ -99,15 +102,15 @@ namespace AdminClient.ViewModels
                 var dialogViewModel = new EditProgramViewModel(_apiService, SelectedItem);
                 var dialog = new EditProgramDialog { DataContext = dialogViewModel };
 
-                // Register our event handler lambdas
-                dialogViewModel.ProgramUpdated += (s, updatedOrg) =>
+                // Register lambda as event handler
+                dialogViewModel.ProgramUpdated += (s, updatedProg) =>
                 {
                     // Update the item in the collection
                     var index = Items.IndexOf(SelectedItem);
                     if (index != -1)
                     {
-                        Items[index] = updatedOrg;
-                        ProgramsCollectionUpdated?.Invoke(this, null);
+                        Items[index] = updatedProg;
+                        ProgramsCollectionUpdated?.Invoke(this, updatedProg);
                     }
                 };
 
@@ -118,7 +121,7 @@ namespace AdminClient.ViewModels
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error updating organization: {ex.Message}";
+                ErrorMessage = $"Error updating program: {ex.Message}";
             }
             finally
             {
@@ -140,7 +143,7 @@ namespace AdminClient.ViewModels
             var dialogContent = new StackPanel { Margin = new Thickness(16) };
             dialogContent.Children.Add(new TextBlock
             {
-                Text = $"Are you sure you want to delete organization '{SelectedItem.Name}'?",
+                Text = $"Are you sure you want to delete program '{SelectedItem.Name}'?",
                 Margin = new Thickness(0, 0, 0, 16)
             });
 
@@ -183,7 +186,7 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
-                await _apiService.DeleteProgramAsync(itemToDelete.Organization.Id, itemToDelete);
+                await _apiService.DeleteProgramAsync(itemToDelete);
 
                 // Remove from collection
                 Items.Remove(itemToDelete);
@@ -194,7 +197,7 @@ namespace AdminClient.ViewModels
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error deleting organization: {ex.Message}";
+                ErrorMessage = $"Error deleting program: {ex.Message}";
             }
             finally
             {
@@ -203,9 +206,9 @@ namespace AdminClient.ViewModels
         }
 
         [RelayCommand]
-        public async Task ViewDetails(Program org)
+        public async Task ViewDetails(Program program)
         {
-            var dialog = new ProgramDetailsDialog { DataContext = org };
+            var dialog = new ProgramDetailsDialog { DataContext = program};
             await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
         }
     }

@@ -12,7 +12,7 @@ namespace AdminClient.Views
         }
 
         // Don't know how to auto size Syncfusion grid to fit available space. So I'm doing it manually...
-        private void OrganizationsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void DataGrid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (sender is SfDataGrid grid && grid.Columns.Count > 0)
             {

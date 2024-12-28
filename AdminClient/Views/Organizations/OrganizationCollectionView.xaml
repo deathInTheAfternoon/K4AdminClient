@@ -16,10 +16,7 @@
         EditCommand="{Binding EditCommand}"
         ErrorMessage="{Binding ErrorMessage}"
         IsLoading="{Binding IsLoading}">
-        <!--
-            This is the content that goes into ContentPresenter of BaseCollectionView.
-            It is specific to the "Organization" domain.
-        -->
+
         <local:BaseCollectionView.CollectionContent>
             <syncfusion:SfDataGrid
                 VerticalAlignment="Stretch"
@@ -32,7 +29,7 @@
                 ItemsSource="{Binding Items}"
                 RowHeight="50"
                 SelectedItem="{Binding SelectedItem}"
-                SizeChanged="OrganizationsGrid_SizeChanged">
+                SizeChanged="DataGrid_SizeChanged">
 
                 <syncfusion:SfDataGrid.Resources>
                     <Style TargetType="syncfusion:GridHeaderCellControl">

@@ -69,12 +69,6 @@ namespace AdminClient.Services
             response.EnsureSuccessStatusCode();
         }
 
-        public async Task<List<Program>> GetProgramsForOrganizationAsync(long orgId)
-        {
-            return await _httpClient.GetFromJsonAsync<List<Program>>($"/organizations/{orgId}/programs")
-                ?? new List<Program>();
-        }
-
         public async Task<Program> CreateProgramAsync(long orgId, Program program)
         {
             var response = await _httpClient.PostAsJsonAsync($"/organizations/{orgId}/programs", program);
@@ -82,28 +76,43 @@ namespace AdminClient.Services
             return await response.Content.ReadFromJsonAsync<Program>()
                 ?? throw new Exception("Failed to create program");
         }
-        public async Task DeleteProgramAsync(long orgId, Program program)
+
+        public async Task<List<Program>> GetProgramsForOrganizationAsync(long orgId)
         {
-            var response = await _httpClient.DeleteAsync($"regions/us/organizations/{orgId}/programs/{program.Id}");
+            return await _httpClient.GetFromJsonAsync<List<Program>>($"/organizations/{orgId}/programs")
+                ?? new List<Program>();
+        }
+
+        public async Task<Program> UpdateProgramAsync(Program program)
+        {
+            var response = await _httpClient.PutAsJsonAsync($"us/programs/{program.Id}", program);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<Program>()
+                ?? throw new Exception("Failed to update program");
+        }
+
+        public async Task DeleteProgramAsync(Program program)
+        {
+            var response = await _httpClient.DeleteAsync($"/us/programs/{program.Id}");
             response.EnsureSuccessStatusCode();
         }
 
         // Program Operations
         public async Task<Program> GetProgramAsync(long programId)
         {
-            return await _httpClient.GetFromJsonAsync<Program>($"/programs/{programId}")
+            return await _httpClient.GetFromJsonAsync<Program>($"us/programs/{programId}")
                 ?? throw new Exception("Program not found");
         }
 
         public async Task<List<OperatingUnit>> GetOperatingUnitsForProgramAsync(long programId)
         {
-            return await _httpClient.GetFromJsonAsync<List<OperatingUnit>>($"/programs/{programId}/operating-units")
+            return await _httpClient.GetFromJsonAsync<List<OperatingUnit>>($"us/programs/{programId}/operating-units")
                 ?? new List<OperatingUnit>();
         }
 
         public async Task<OperatingUnit> CreateOperatingUnitAsync(long programId, OperatingUnit ou)
         {
-            var response = await _httpClient.PostAsJsonAsync($"/programs/{programId}/operating-units", ou);
+            var response = await _httpClient.PostAsJsonAsync($"us/programs/{programId}/operating-units", ou);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<OperatingUnit>()
                 ?? throw new Exception("Failed to create operating unit");
@@ -112,14 +121,14 @@ namespace AdminClient.Services
         // Bundle and Activity Operations
         public async Task<List<BundleDefinition>> GetBundleDefinitionsForProgramAsync(long programId)
         {
-            var response = await _httpClient.GetAsync($"/programs/{programId}/bundle-definitions");
+            var response = await _httpClient.GetAsync($"us/programs/{programId}/bundle-definitions");
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<List<BundleDefinition>>();
         }
 
         public async Task<BundleDefinition> CreateBundleDefinitionAsync(long programId, BundleDefinition bundle)
         {
-            var response = await _httpClient.PostAsJsonAsync($"/programs/{programId}/bundle-definitions", bundle);
+            var response = await _httpClient.PostAsJsonAsync($"us/programs/{programId}/bundle-definitions", bundle);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<BundleDefinition>()
                 ?? throw new Exception("Failed to create bundle definition");
@@ -127,7 +136,7 @@ namespace AdminClient.Services
 
         public async Task<ActivityDefinition> CreateActivityDefinitionAsync(long programId, ActivityDefinition activity)
         {
-            var response = await _httpClient.PostAsJsonAsync($"/programs/{programId}/activity-definitions", activity);
+            var response = await _httpClient.PostAsJsonAsync($"us/programs/{programId}/activity-definitions", activity);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<ActivityDefinition>()
                 ?? throw new Exception("Failed to create activity definition");
@@ -136,7 +145,7 @@ namespace AdminClient.Services
         public async Task AddActivityToBundleAsync(long programId, long bundleId, long activityId)
         {
             var response = await _httpClient.PostAsync(
-                $"/programs/{programId}/bundle-definitions/{bundleId}/activity-definitions/{activityId}",
+                $"us/programs/{programId}/bundle-definitions/{bundleId}/activity-definitions/{activityId}",
                 null);
             response.EnsureSuccessStatusCode();
         }

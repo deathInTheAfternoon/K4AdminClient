@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using AdminClient.Models;
@@ -168,15 +169,28 @@ namespace AdminClient.ViewModels
         {
             if (!_disposed)
             {
-                if (disposing && CurrentViewModel is OrganizationViewModel viewModel)
+                if (disposing)
                 {
-                    viewModel.OrganizationSelected -= OnOrganizationSelected;
+                    if (CurrentViewModel is OrganizationViewModel viewModel)
+                    {
+                        viewModel.OrganizationSelected -= OnOrganizationSelected;
+                    }
+                    if (CurrentViewModel is OrganizationCollectionViewModel collectionViewModel)
+                    {
+                        collectionViewModel.OrganizationDeleted -= OnOrganizationDeleted;
+                    }
+                    // Add this cleanup
+                    if (CurrentViewModel is ProgramCollectionViewModel programViewModel)
+                    {
+                        programViewModel.ProgramsCollectionUpdated -= (s, updatedProgram) =>
+                            UpdateProgramNodeInTree(updatedProgram);
+                        programViewModel.ProgramDeleted -= (s, deletedProgram) =>
+                            RemoveProgramNodeFromTree(deletedProgram);
+                        programViewModel.ProgramsCollectionUpdated -= (s, newProgram) =>
+                            AddProgramNodeToTree(newProgram);
+                    }
+                    _disposed = true;
                 }
-                if (CurrentViewModel is OrganizationCollectionViewModel collectionViewModel)
-                {
-                    collectionViewModel.OrganizationDeleted -= OnOrganizationDeleted;
-                }
-                _disposed = true;
             }
         }
 
@@ -277,6 +291,13 @@ namespace AdminClient.ViewModels
                             {
                                 _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
                                 var programCollectionViewModel = new ProgramCollectionViewModel(_apiService, parentOrg);
+                                // Wire up event handlers (events from CollectionViewModels)
+                                programCollectionViewModel.ProgramsCollectionUpdated += (s, updatedProgram) =>
+                                                    UpdateProgramNodeInTree(updatedProgram);
+                                programCollectionViewModel.ProgramDeleted += (s, deletedProgram) =>
+                                                    RemoveProgramNodeFromTree(deletedProgram);
+                                programCollectionViewModel.ProgramsCollectionUpdated += (s, newProgram) =>
+                                                    AddProgramNodeToTree(newProgram);
                                 CurrentViewModel = programCollectionViewModel;
                                 CurrentViewTitle = programCollectionViewModel.CollectionTitle;
                                 CanNavigateBack = true;
@@ -383,6 +404,113 @@ namespace AdminClient.ViewModels
             catch (Exception ex)
             {
                 MessageBox.Show($"Error handling selection: {ex.Message}");
+            }
+        }
+
+        // In MainWindowViewModel.cs
+        private void UpdateProgramNodeInTree(Program updatedProgram)
+        {
+            try
+            {
+                if (updatedProgram == null) return;
+
+                var rootNode = TreeNodes.FirstOrDefault();
+                if (rootNode == null) return;
+
+                // Find the organization containing this program
+                var orgNode = rootNode.Children
+                    .FirstOrDefault(n => n.ModelObject is Organization org
+                        && org.Id == updatedProgram.Organization?.Id);
+                if (orgNode == null) return;
+
+                // Find the Programs container node
+                var programsNode = orgNode.Children
+                    .FirstOrDefault(n => n.NodeType == TreeNodeType.Programs);
+                if (programsNode == null) return;
+
+                // Find the program node
+                var programNode = programsNode.Children
+                    .FirstOrDefault(n => n.ModelObject is Program prog
+                        && prog.Id == updatedProgram.Id);
+                if (programNode != null)
+                {
+                    // We can only update the Name property
+                    programNode.Name = updatedProgram.Name;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating program node: {ex.Message}");
+            }
+        }
+
+        // In MainWindowViewModel.cs
+        private void RemoveProgramNodeFromTree(Program deletedProgram)
+        {
+            try
+            {
+                if (deletedProgram == null) return;
+
+                var rootNode = TreeNodes.FirstOrDefault();
+                if (rootNode == null) return;
+
+                // Find the organization containing this program
+                var orgNode = rootNode.Children
+                    .FirstOrDefault(n => n.ModelObject is Organization org
+                        && org.Id == deletedProgram.Organization?.Id);
+                if (orgNode == null) return;
+
+                // Find the Programs container node
+                var programsNode = orgNode.Children
+                    .FirstOrDefault(n => n.NodeType == TreeNodeType.Programs);
+                if (programsNode == null) return;
+
+                // Find and remove the program node
+                var programNode = programsNode.Children
+                    .FirstOrDefault(n => n.ModelObject is Program prog
+                        && prog.Id == deletedProgram.Id);
+                if (programNode != null)
+                {
+                    programsNode.Children.Remove(programNode);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error removing program node: {ex.Message}");
+            }
+        }
+
+        // In MainWindowViewModel.cs
+        private void AddProgramNodeToTree(Program newProgram)
+        {
+            try
+            {
+                if (newProgram == null) return;
+
+                var rootNode = TreeNodes.FirstOrDefault();
+                if (rootNode == null) return;
+
+                // Find the organization containing this program
+                var orgNode = rootNode.Children
+                    .FirstOrDefault(n => n.ModelObject is Organization org
+                        && org.Id == newProgram.Organization?.Id);
+                if (orgNode == null) return;
+
+                // Find the Programs container node
+                var programsNode = orgNode.Children
+                    .FirstOrDefault(n => n.NodeType == TreeNodeType.Programs);
+                if (programsNode == null) return;
+
+                // Create and add the new program node
+                var newProgramNode = new TreeNodeViewModel(
+                    newProgram.Name,
+                    TreeNodeType.Program,
+                    newProgram);
+                programsNode.Children.Add(newProgramNode);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error adding program node: {ex.Message}");
             }
         }
     }

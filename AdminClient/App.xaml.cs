@@ -5,6 +5,7 @@ using AdminClient.ViewModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Syncfusion.SfSkinManager;
 
 namespace AdminClient
 {
@@ -18,6 +19,8 @@ namespace AdminClient
         public App()
         {
             Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8 / V1NMaF5cXmZCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdnWH1cc3VXQ2ZcUkxxWEo =");
+            SfSkinManager.ApplyStylesOnApplication = true;
+
 
             _host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, builder) =>

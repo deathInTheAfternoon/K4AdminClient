@@ -41,7 +41,9 @@
     <PackageReference Include="SharpVectors" Version="1.8.4.2" />
     <PackageReference Include="Syncfusion.SfGrid.WPF" Version="28.1.36" />
     <PackageReference Include="Syncfusion.SfInput.WPF" Version="28.1.36" />
+    <PackageReference Include="Syncfusion.SfSkinManager.WPF" Version="28.1.36" />
     <PackageReference Include="Syncfusion.Shared.WPF" Version="28.1.36" />
+    <PackageReference Include="Syncfusion.Themes.MaterialLight.WPF" Version="28.1.36" />
     <PackageReference Include="Syncfusion.Tools.WPF" Version="28.1.36" />
   </ItemGroup>
 

@@ -115,6 +115,7 @@ namespace AdminClient.Models
         public string Name { get; set; }
 
         [JsonPropertyName("status")]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public BundleStatus Status { get; set; } = BundleStatus.DRAFT;
 
         [JsonPropertyName("program")]

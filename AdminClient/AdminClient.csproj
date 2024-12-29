@@ -66,6 +66,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Templates\CreateXDialog.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>CreateXDialog.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Templates\CreateXDialogCS.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>CreateXDialogCS.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Templates\EditXDialogCS.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>EditXDialogCS.tt</DependentUpon>
+    </Compile>
     <Compile Update="Views\BundleDefinitions\BundleDefinitionDetailsDialog.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -112,6 +127,14 @@
 
   <ItemGroup>
     <Folder Include="Templates\Output\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Update="Templates\EditXDialog.xaml">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>EditXDialog.tt</DependentUpon>
+    </Page>
   </ItemGroup>
 
 </Project>

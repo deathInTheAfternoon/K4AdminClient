@@ -25,6 +25,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Page Remove="Templates\CreateXDialog - Copy.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Templates\CreateXDialogCS.tt">
+      <SubType>Code</SubType>
+      <LastGenOutput>CreateXDialogCS.cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </Compile>
+    <Compile Include="Templates\EditXDialogCS.tt">
+      <SubType>Code</SubType>
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>EditXDialogCS.cs</LastGenOutput>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="CsvHelper" Version="33.0.1" />
     <PackageReference Include="Faker.Net" Version="2.0.163" />
@@ -62,6 +79,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Templates\CreateXDialog.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>CreateXDialog.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Templates\CreateXDialogCS.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>CreateXDialogCS.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Templates\EditXDialogCS.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>EditXDialogCS.tt</DependentUpon>
+    </Compile>
     <Compile Update="Views\Programs\ProgramDetailsDialog.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -71,6 +103,30 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Templates\EditXDialog.tt">
+      <CustomToolNamespace>AdminClient</CustomToolNamespace>
+      <LastGenOutput>EditXDialog.xaml</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
+    <None Update="Templates\CreateXDialog.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>CreateXDialog.cs</LastGenOutput>
+      <CustomToolNamespace>AdminClient</CustomToolNamespace>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="C:\Users\navee\.nuget\packages\t4.filemanager.visualstudio\4.0.2\contentFiles\any\any\T4.FileManager.VisualStudio19.ttinclude">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Templates\Output\" />
   </ItemGroup>
 
 </Project>

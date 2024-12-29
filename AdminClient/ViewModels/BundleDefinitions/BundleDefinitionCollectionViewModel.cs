@@ -1,14 +1,15 @@
 ﻿using AdminClient.Models;
 using AdminClient.Services;
 using AdminClient.Views;
-using CommunityToolkit.Mvvm.ComponentModel;
-using System.Collections.ObjectModel;
+using MaterialDesignThemes.Wpf;
 
 namespace AdminClient.ViewModels
 {
     public partial class BundleDefinitionCollectionViewModel : BaseCollectionViewModel<BundleDefinition>
     {
         private readonly Program _program;
+        // Event emitters
+        public event EventHandler<BundleDefinition> BundlesCollectionUpdated;
 
         public BundleDefinitionCollectionViewModel(ApiService apiService, Program program)
             : base(apiService)
@@ -42,10 +43,11 @@ namespace AdminClient.ViewModels
             }
         }
 
+        // On UI button click handler.
         protected override async Task AddAsync()
         {
             // Create and setup dialog
-            var dialogViewModel = new CreateBundleDefinitionViewModel(_apiService, _program);
+            var dialogViewModel = new CreateBundleDefinitionDialogModel(_apiService, _program);
             var dialog = new CreateBundleDefinitionDialog { DataContext = dialogViewModel };
 
             try
@@ -53,13 +55,17 @@ namespace AdminClient.ViewModels
                 IsLoading = true;
                 ErrorMessage = null;
 
-                dialogViewModel.BundleCreated += (s, newBundle) =>
+                dialogViewModel.BundlesCollectionUpdated += (s, newBundle) =>
                 {
                     Items.Add(newBundle);
+                    // Raise event to notify listeners
+                    BundlesCollectionUpdated?.Invoke(this, newBundle);
                 };
 
+                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
+
                 // Show dialog and wait for result
-                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog);
+                await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");
             }
             catch (Exception ex)
             {

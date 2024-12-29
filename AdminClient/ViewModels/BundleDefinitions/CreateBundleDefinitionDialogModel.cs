@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AdminClient.ViewModels
 {
-    public partial class CreateBundleDefinitionViewModel : ObservableObject
+    public partial class CreateBundleDefinitionDialogModel : ObservableObject
     {
         private readonly ApiService _apiService;
         private readonly Program _program;
@@ -16,10 +16,11 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private string _name;
 
-        public event EventHandler<BundleDefinition> BundleCreated;
+        // Event emitters
+        public event EventHandler<BundleDefinition> BundlesCollectionUpdated;
         public event EventHandler DialogClosed;
 
-        public CreateBundleDefinitionViewModel(ApiService apiService, Program program)
+        public CreateBundleDefinitionDialogModel(ApiService apiService, Program program)
         {
             _apiService = apiService;
             _program = program;
@@ -50,9 +51,10 @@ namespace AdminClient.ViewModels
                     Program = _program,
                     Status = BundleStatus.DRAFT
                 };
-
                 var createdBundle = await _apiService.CreateBundleDefinitionAsync(_program.Id, newBundle);
-                BundleCreated?.Invoke(this, createdBundle);
+                
+                // Invoke client handlers
+                BundlesCollectionUpdated?.Invoke(this, createdBundle);
                 DialogClosed?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)

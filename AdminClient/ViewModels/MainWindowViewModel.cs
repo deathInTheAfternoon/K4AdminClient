@@ -318,6 +318,13 @@ namespace AdminClient.ViewModels
                             {
                                 _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
                                 var bundleCollectionViewModel = new BundleDefinitionCollectionViewModel(_apiService, parentProgramForBD);
+                                // Wire up event handlers (events from CollectionViewModel)
+                                bundleCollectionViewModel.BundlesCollectionUpdated += (s, newBundle) =>
+                                {
+                                    // Add new bundle to the tree
+                                    var bundleNode = new TreeNodeViewModel(newBundle.Name, TreeNodeType.BundleDefinition, newBundle);
+                                    selectedNode.AddChild(bundleNode);
+                                };
                                 CurrentViewModel = bundleCollectionViewModel;
                                 CurrentViewTitle = bundleCollectionViewModel.CollectionTitle;
                                 CanNavigateBack = true;
@@ -374,7 +381,7 @@ namespace AdminClient.ViewModels
                         {
                             _navigationStack.Push((CurrentViewModel, CurrentViewTitle));
 
-                            var detailViewModel = new OperatingUnitDetailViewModel(_apiService, unit);
+                            var detailViewModel = new OperatingUnitDetailsDialogModel(_apiService, unit);
                             CurrentViewModel = detailViewModel;
                             CurrentViewTitle = $"Operating Unit - {unit.Name}";
                             CanNavigateBack = true;

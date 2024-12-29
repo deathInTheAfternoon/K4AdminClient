@@ -29,19 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Templates\CreateXDialogCS.tt">
-      <SubType>Code</SubType>
-      <LastGenOutput>CreateXDialogCS.cs</LastGenOutput>
-      <Generator>TextTemplatingFileGenerator</Generator>
-    </Compile>
-    <Compile Include="Templates\EditXDialogCS.tt">
-      <SubType>Code</SubType>
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>EditXDialogCS.cs</LastGenOutput>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="CsvHelper" Version="33.0.1" />
     <PackageReference Include="Faker.Net" Version="2.0.163" />
@@ -79,20 +66,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Templates\CreateXDialog.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>CreateXDialog.tt</DependentUpon>
-    </Compile>
-    <Compile Update="Templates\CreateXDialogCS.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>CreateXDialogCS.tt</DependentUpon>
-    </Compile>
-    <Compile Update="Templates\EditXDialogCS.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>EditXDialogCS.tt</DependentUpon>
+    <Compile Update="Views\BundleDefinitions\BundleDefinitionDetailsDialog.xaml.cs">
+      <SubType>Code</SubType>
     </Compile>
     <Compile Update="Views\Programs\ProgramDetailsDialog.xaml.cs">
       <SubType>Code</SubType>
@@ -103,6 +78,11 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Templates\CreateXDialogCS.tt">
+      <SubType>Code</SubType>
+      <LastGenOutput>CreateXDialogCS.cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
     <None Update="Templates\EditXDialog.tt">
       <CustomToolNamespace>AdminClient</CustomToolNamespace>
       <LastGenOutput>EditXDialog.xaml</LastGenOutput>
@@ -112,6 +92,11 @@
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>CreateXDialog.cs</LastGenOutput>
       <CustomToolNamespace>AdminClient</CustomToolNamespace>
+    </None>
+    <None Update="Templates\EditXDialogCS.tt">
+      <SubType>Code</SubType>
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>EditXDialogCS.cs</LastGenOutput>
     </None>
   </ItemGroup>
 

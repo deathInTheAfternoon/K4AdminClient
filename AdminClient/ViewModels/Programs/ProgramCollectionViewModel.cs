@@ -75,7 +75,7 @@ namespace AdminClient.ViewModels
                     ProgramsCollectionUpdated?.Invoke(this, newProg);
                 };
 
-                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null); ;
+                dialogViewModel.DialogClosed += (s, e) => DialogHost.CloseDialogCommand.Execute(null, null);
 
                 // Show dialog and wait for result
                 await MaterialDesignThemes.Wpf.DialogHost.Show(dialog, "RootDialog");

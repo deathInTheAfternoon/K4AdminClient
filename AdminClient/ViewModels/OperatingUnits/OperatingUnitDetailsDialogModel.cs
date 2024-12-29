@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AdminClient.Models;
+﻿using AdminClient.Models;
 using AdminClient.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace AdminClient.ViewModels
 {
-    public partial class OperatingUnitDetailViewModel : ObservableObject
+    public partial class OperatingUnitDetailsDialogModel : ObservableObject
     {
         private readonly ApiService _apiService;
         private readonly OperatingUnit _operatingUnit;
@@ -27,7 +22,7 @@ namespace AdminClient.ViewModels
         [ObservableProperty]
         private Program _program;
 
-        public OperatingUnitDetailViewModel(ApiService apiService, OperatingUnit operatingUnit)
+        public OperatingUnitDetailsDialogModel(ApiService apiService, OperatingUnit operatingUnit)
         {
             _apiService = apiService;
             _operatingUnit = operatingUnit;

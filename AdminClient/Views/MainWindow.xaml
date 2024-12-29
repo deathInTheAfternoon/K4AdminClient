@@ -36,8 +36,8 @@
         <DataTemplate DataType="{x:Type vm:OrganizationDetailViewModel}">
             <views1:OrganizationDetailForm />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:OperatingUnitDetailViewModel}">
-            <views:OperatingUnitDetailForm />
+        <DataTemplate DataType="{x:Type vm:OperatingUnitDetailsDialogModel}">
+            <views:OperatingUnitDetailsDialog />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ProgramCollectionViewModel}">
             <views:ProgramCollectionView />
